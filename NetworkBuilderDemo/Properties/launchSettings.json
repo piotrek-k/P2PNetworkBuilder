@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "NetworkBuilderDemo": {
+      "commandName": "Project",
+      "commandLineArgs": "13000"
+    },
+    "Docker": {
+      "commandName": "Docker"
+    }
+  }
+}
