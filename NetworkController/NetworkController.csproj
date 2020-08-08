@@ -2,6 +2,9 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    <Authors>Piotr Kozerski</Authors>
+    <Description>Building P2P networks</Description>
+    <Version>1.0.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
