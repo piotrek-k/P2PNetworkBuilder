@@ -23,7 +23,7 @@ namespace NetworkController.Interfaces.ForTesting
         void SendBytes(int type, byte[] payloadOfDataFrame, IPEndPoint endpoint, bool ensureDelivered);
         void SendReceiveAcknowledge(uint retransmissionId);
 
-        public new ConnectionState CurrentState { get; set; }
+        new ConnectionState CurrentState { get; set; }
 
         bool AfterHolePunchingResponse_WaitingForPingResponse { get; set; }
 

@@ -36,6 +36,6 @@ namespace NetworkController.Interfaces
         /// </summary>
         Guid Id { get; }
         bool IsActive { get; }
-        public ConnectionState CurrentState { get; }
+        ConnectionState CurrentState { get; }
     }
 }
