@@ -1,12 +1,17 @@
 #! /bin/bash
+# Exit on error
+# set -e
+# Verbose
+set -x
 
 # Clean
 rm -i ./*.nupkg
 
 # Create
-nuget pack
+dotnet build || exit 1
+nuget pack || exit 1
 
 # Move to local storage
-file_name=`find -name "*.nupkg" -print -quit`
-mkdir -p ~/.nuget_local_packages
+file_name=`find -name "*.nupkg" -print -quit || exit 1`
+mkdir -p ~/.nuget_local_packages || exit 1
 nuget add ${file_name} -source ~/.nuget_local_packages
