@@ -4,8 +4,6 @@ using NetworkController.Debugging;
 using NetworkController.Interfaces;
 using NetworkController.UDP;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace NetworkController
 {
@@ -28,7 +26,7 @@ namespace NetworkController
 
         public NetworkManagerFactory AddTracker(NetworkBehaviourTracker nbt)
         {
-            _nbt = nbt ?? new ConnectionsManager.Debugging.NetworkBehaviourTracker();
+            _nbt = nbt ?? new NetworkBehaviourTracker();
 
             return this;
         }
@@ -43,6 +41,17 @@ namespace NetworkController
         public INetworkController Create(Guid? enforceId = null)
         {
             NetworkManager nm;
+
+            if(_nbt == null)
+            {
+                _nbt = new NetworkBehaviourTracker();
+            }
+
+            if(_logger == null)
+            {
+                _logger = new CustomLoggerProvider().CreateLogger("category name");
+            }
+
             if (enforceId == null || enforceId.Value == Guid.Empty)
             {
                 nm = new NetworkManager(_logger, _nbt);

@@ -139,9 +139,9 @@ namespace NetworkController.UDP
                     null
                 );
             }
-            catch (PlatformNotSupportedException)
+            catch (Exception)
             {
-                _logger.LogTrace("Couldn't set IOControl. PlatformNotSupportedException");
+                _logger.LogTrace("Couldn't set IOControl. Ignore if not working on Windows");
             }
 
             udpClient.BeginReceive(new AsyncCallback(handleIncomingMessages), null);
@@ -152,7 +152,7 @@ namespace NetworkController.UDP
             var connTracker = _tracker.NewSession();
 
             ExternalNode en;
-            var foundEndpoint = _knownNodes.FirstOrDefault(x => x.CurrentEndpoint == endpoint);
+            ExternalNode foundEndpoint = _knownNodes.FirstOrDefault(x => x.CurrentEndpoint == endpoint);
             if (foundEndpoint == null)
             {
                 en = new ExternalNode(endpoint, this, _logger, connTracker);
