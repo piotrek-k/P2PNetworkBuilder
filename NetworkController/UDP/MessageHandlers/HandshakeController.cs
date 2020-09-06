@@ -20,7 +20,8 @@ namespace NetworkController.UDP.MessageHandlers
         {
             return new AdditionalInfo()
             {
-                KnownNodes = source.NetworkController.GetNodes().Select(x => x.Id).ToList(),
+                KnownNodes = source.NetworkController.GetNodes()
+                    .Where(x => x.CurrentState == ExternalNode.ConnectionState.Ready).Select(x => x.Id).ToList(),
                 ClaimedPrivateIPv4 = source.NetworkController.DeviceIPAddress.MapToIPv4().ToString(),
                 ClaimedPrivatePort = source.NetworkController.DevicePort
             };
