@@ -16,9 +16,6 @@ namespace NetworkController.UDP
 {
     public class ExternalNode : IExternalNode, IExternalNodeInternal
     {
-        /// <summary>
-        /// There are two possible endpoints to try to connect. This is the "correct" one
-        /// </summary>
         public IPEndPoint CurrentEndpoint
         {
             get
@@ -32,10 +29,14 @@ namespace NetworkController.UDP
 
         private IPEndPoint _currentEP = null;
 
+        /// <summary>
+        /// IP and Port of node as seen from node that shared information about him
+        /// </summary>
         public IPEndPoint PublicEndpoint { get; set; }
+        /// <summary>
+        /// IP and Port of node in his private network
+        /// </summary>
         public IPEndPoint ClaimedPrivateEndpoint { get; set; }
-
-        public bool IsActive => throw new NotImplementedException();
 
         public INetworkControllerInternal NetworkController { get; set; }
         public Guid Id { get; private set; }
@@ -43,6 +44,9 @@ namespace NetworkController.UDP
         public AsymmetricEncryptionService Aes { get; set; }
         public SymmetricEncryptionService Ses { get; set; }
 
+        /// <summary>
+        /// Redirects incoming messages to proper functions handling them
+        /// </summary>
         private readonly IncomingMessageCaller _imc;
         private readonly ILogger _logger;
 
@@ -102,7 +106,6 @@ namespace NetworkController.UDP
         }
 
         private ConnectionState _currentState = ConnectionState.NotEstablished;
-
         public ConnectionState CurrentState
         {
             get { return _currentState; }
@@ -115,10 +118,22 @@ namespace NetworkController.UDP
             }
         }
 
+        /// <summary>
+        /// Thread for keeping connection active by periodically sending pings
+        /// </summary>
         private KeepaliveThread _keepaliveThread;
+        /// <summary>
+        /// Cancellation token connected with keepalive thread
+        /// </summary>
         private CancellationTokenSource _allChildThreadsCancellationToken;
 
+        /// <summary>
+        /// Class for sending messages and ensuring it was properly delivered
+        /// </summary>
         private ITransmissionManager _transmissionManager;
+        /// <summary>
+        /// Counter of messages ensuring their proper order
+        /// </summary>
         private ulong _highestReceivedSendingId;
 
         // Building states
@@ -245,6 +260,12 @@ namespace NetworkController.UDP
             //_logger.LogDebug($"{Id} \t Outgoing: {GetMessageName(data.MessageType) + " transm. id: " + data.RetransmissionId}");
         }
 
+        /// <summary>
+        /// Tries to get name of message based on its id.
+        /// Names are based on MessagetTypes registred in NetworkController
+        /// </summary>
+        /// <param name="msgId"></param>
+        /// <returns></returns>
         private string GetMessageName(int msgId)
         {
             foreach (var t in NetworkController.GetMessageTypes())
@@ -263,6 +284,9 @@ namespace NetworkController.UDP
             return null;
         }
 
+        /// <summary>
+        /// Sends PublicKey to external node to begin connection
+        /// </summary>
         public void InitializeConnection()
         {
             Aes = new AsymmetricEncryptionService();
@@ -274,11 +298,6 @@ namespace NetworkController.UDP
             CurrentState = ConnectionState.Building;
 
             SendBytes((int)MessageType.PublicKey, payload);
-        }
-
-        public void SendPing()
-        {
-            throw new NotImplementedException();
         }
 
         public void HandleIncomingBytes(DataFrame dataFrame)
@@ -368,35 +387,45 @@ namespace NetworkController.UDP
                 return;
             }
 
-            if (_highestReceivedSendingId + 1 == dataFrame.RetransmissionId)
-            {
-                _highestReceivedSendingId = dataFrame.RetransmissionId;
-            }
-            else if (dataFrame.RetransmissionId != 0)
+            if (_highestReceivedSendingId + 1 != dataFrame.RetransmissionId && dataFrame.RetransmissionId != 0)
             {
                 _logger.LogDebug($"Message {dataFrame.RetransmissionId} omitted as it has incorrect tranmission id" +
                     $" ({dataFrame.RetransmissionId} but should be {_highestReceivedSendingId + 1})");
                 return;
             }
 
-            if (dataFrame.ExpectAcknowledge)
+            try
             {
-                SendReceiveAcknowledge(dataFrame.RetransmissionId);
-            }
-
-            if (!_imc.Call(this, dataFrame.MessageType, decryptedPayload))
-            {
-                // Message not found. Pass it further.
-
-                OnBytesReceivedEvent(new BytesReceivedEventArgs
+                if (!_imc.Call(this, dataFrame.MessageType, decryptedPayload))
                 {
-                    Sender = this,
-                    MessageType = (int)dataFrame.MessageType,
-                    Payload = decryptedPayload
-                });
+                    // Message not found. Pass it further.
+
+                    OnBytesReceivedEvent(new BytesReceivedEventArgs
+                    {
+                        Sender = this,
+                        MessageType = (int)dataFrame.MessageType,
+                        Payload = decryptedPayload
+                    });
+                }
+
+                _highestReceivedSendingId = dataFrame.RetransmissionId;
+
+                if (dataFrame.ExpectAcknowledge)
+                {
+                    SendReceiveAcknowledge(dataFrame.RetransmissionId);
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"Error while processing message number {dataFrame.RetransmissionId} of type" +
+                    $" {GetMessageName((int)dataFrame.MessageType)}({(int)dataFrame.MessageType}). {e.Message}");
             }
         }
 
+        /// <summary>
+        /// If connection is failed, set it to Ready and restore all necessary threads
+        /// that might be suspended during failure
+        /// </summary>
         private void RestoreIfFailed()
         {
             if (CurrentState == ConnectionState.Failed)
