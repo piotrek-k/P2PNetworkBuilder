@@ -139,19 +139,25 @@ namespace NetworkController.Threads
                     (wm, cb) = _dataframeQueue.Peek();
                     idOfRetransmittedMessage = currentSendingId;
                     //wm.DataFrame.RetransmissionId = currentSendingId;
-                    if(idOfRetransmittedMessage != wm.DataFrame.RetransmissionId)
+                    if (idOfRetransmittedMessage != wm.DataFrame.RetransmissionId)
                     {
                         _logger.LogError("Incorrect retransmission id in RetransmissionLoop");
                     }
                 }
 
+                bool firstTransmission = true;
                 while (idOfRetransmittedMessage == currentSendingId)
                 {
-                    _logger.LogDebug($"{_externalNode.Id} Retransmission of {wm.DataFrame.RetransmissionId}");
+                    if (!firstTransmission)
+                    {
+                        _logger.LogDebug($"{_externalNode.Id} Retransmission of {wm.DataFrame.RetransmissionId}");
+                    }
+                    firstTransmission = false;
+
                     _networkController.SendBytes(wm.DataFrame.PackToBytes(), wm.Destination);
                     lock (retransmissionSleepLock)
                     {
-                        if(_externalNode.CurrentState == UDP.ExternalNode.ConnectionState.Failed)
+                        if (_externalNode.CurrentState == UDP.ExternalNode.ConnectionState.Failed)
                         {
                             _logger.LogDebug($"{_externalNode.Id} Retransmission suspended as state is 'Failed'");
                             Monitor.Wait(retransmissionSleepLock);
