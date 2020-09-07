@@ -12,6 +12,6 @@ dotnet build || exit 1
 ./nuget.exe pack NetworkController.csproj || exit 1
 
 # Move to local storage
-file_name=`find -name "*.nupkg" -print -quit || exit 1`
+file_name=`find -maxdepth 1 -name "*.nupkg" -print -quit || exit 1`
 mkdir -p /c/Users/piotr/source/nuget_packages || exit 1
 ./nuget.exe add ${file_name} -source /c/Users/piotr/source/nuget_packages

@@ -39,6 +39,11 @@ namespace NetworkController.UDP
         }
 
         public event EventHandler NodeAdded;
+        public virtual void OnNodeAddedEvent(EventArgs e)
+        {
+            EventHandler handler = NodeAdded;
+            handler?.Invoke(this, e);
+        }
 
         public List<Type> _messageTypes = new List<Type>();
 
@@ -124,7 +129,7 @@ namespace NetworkController.UDP
             _knownNodes.Add(en);
             _logger.LogDebug($"New node added. Number of external nodes: {_knownNodes.Count}");
 
-            NodeAdded(this, null);
+            OnNodeAddedEvent(null);
 
             return en;
         }
