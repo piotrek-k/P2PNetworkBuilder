@@ -329,7 +329,7 @@ namespace NetworkController.UDP
                 Ses != null)
             {
                 // Connection reset request
-                if (NetworkController.ConnectionResetRule())
+                if (NetworkController.ConnectionResetRule(this))
                 {
                     _logger.LogInformation("Connection reset request accepted");
                     Aes = null;

@@ -14,6 +14,5 @@ namespace NetworkController.Interfaces.ForTesting
         int DevicePort { get; }
         ExternalNode AddNode(Guid id);
         void OnNetworkChangedEvent(EventArgs e);
-        Func<bool> ConnectionResetRule { get; }
     }
 }

@@ -27,7 +27,8 @@ namespace NetworkController.UDP
         /// </summary>
         public NetworkBehaviourTracker _tracker;
 
-        public Func<bool> ConnectionResetRule { get; set; } = () => true;
+        public Func<IExternalNode, bool> ConnectionResetRule { get; set; } = (node) => true;
+        public Func<Guid, bool> NewUnannouncedConnectionAllowanceRule { get; set; } = (guid) => true;
 
         public event EventHandler NetworkChanged;
 
@@ -192,7 +193,7 @@ namespace NetworkController.UDP
                 }
             }
 
-            if (node == null)
+            if (node == null && NewUnannouncedConnectionAllowanceRule(df.SourceNodeId))
             {
                 node = AddNode(df.SourceNodeId);
                 node.PublicEndpoint = senderIpEndPoint;
