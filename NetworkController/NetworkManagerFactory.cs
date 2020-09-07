@@ -11,7 +11,8 @@ namespace NetworkController
     {
         private ILogger _logger;
         private NetworkBehaviourTracker _nbt;
-        private Func<bool> _connectionResetRule;
+        private Func<IExternalNode, bool> _connectionResetRule;
+        private Func<Guid, bool> _newUnannouncedConnectionAllowanceRule;
 
         public NetworkManagerFactory()
         {
@@ -31,9 +32,16 @@ namespace NetworkController
             return this;
         }
 
-        public NetworkManagerFactory AddConnectionResetRule(Func<bool> rule)
+        public NetworkManagerFactory AddConnectionResetRule(Func<IExternalNode, bool> rule)
         {
             _connectionResetRule = rule;
+
+            return this;
+        }
+
+        public NetworkManagerFactory AddNewUnannouncedConnectionAllowanceRule(Func<Guid, bool> rule)
+        {
+            _newUnannouncedConnectionAllowanceRule = rule;
 
             return this;
         }
@@ -64,6 +72,11 @@ namespace NetworkController
             if (_connectionResetRule != null)
             {
                 nm.ConnectionResetRule = _connectionResetRule;
+            }
+
+            if(_newUnannouncedConnectionAllowanceRule != null)
+            {
+                nm.NewUnannouncedConnectionAllowanceRule = _newUnannouncedConnectionAllowanceRule;
             }
 
             return nm;
