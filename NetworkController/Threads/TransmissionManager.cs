@@ -73,7 +73,16 @@ namespace NetworkController.Threads
             lock (counterAndQueueLock)
             {
                 df.RetransmissionId = allSentMessagesCounter;
-                allSentMessagesCounter++;
+
+                if(allSentMessagesCounter != uint.MaxValue)
+                {
+                    allSentMessagesCounter++;
+                }
+                else
+                {
+                    allSentMessagesCounter = 1;
+                }
+                
                 var waitingMessage = new WaitingMessage()
                 {
                     DataFrame = df,
@@ -103,7 +112,16 @@ namespace NetworkController.Threads
                 {
                     (WaitingMessage wm, Action callback) = _dataframeQueue.Dequeue();
                     callback?.Invoke();
-                    currentSendingId++;
+
+                    if (currentSendingId != uint.MaxValue)
+                    {
+                        currentSendingId++;
+                    }
+                    else
+                    {
+                        currentSendingId = 1;
+                    }
+
                     lock (retransmissionSleepLock)
                     {
                         Monitor.Pulse(retransmissionSleepLock);

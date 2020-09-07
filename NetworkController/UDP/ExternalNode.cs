@@ -134,7 +134,7 @@ namespace NetworkController.UDP
         /// <summary>
         /// Counter of messages ensuring their proper order
         /// </summary>
-        private ulong _highestReceivedSendingId;
+        private uint _highestReceivedSendingId;
 
         // Building states
         public bool AfterHolePunchingResponse_WaitingForPingResponse { get; set; } = false;
@@ -387,10 +387,15 @@ namespace NetworkController.UDP
                 return;
             }
 
-            if (_highestReceivedSendingId + 1 != dataFrame.RetransmissionId && dataFrame.RetransmissionId != 0)
+            // checking dataFrame.RetransmissionId != 0 because messages that are not meant to be retransmitted leave it to 0
+
+            if ((_highestReceivedSendingId + 1 != dataFrame.RetransmissionId
+                || (_highestReceivedSendingId == uint.MaxValue && dataFrame.RetransmissionId != 1))
+                && dataFrame.RetransmissionId != 0)
             {
-                _logger.LogDebug($"Message {dataFrame.RetransmissionId} omitted as it has incorrect tranmission id" +
-                    $" ({dataFrame.RetransmissionId} but should be {_highestReceivedSendingId + 1})");
+                _logger.LogDebug($"Message {dataFrame.RetransmissionId} omitted as it has incorrect transmission id" +
+                    $" (got {dataFrame.RetransmissionId} but should be " +
+                    $"{_highestReceivedSendingId != uint.MaxValue: _highestReceivedSendingId + 1 ? 1})");
                 return;
             }
 
