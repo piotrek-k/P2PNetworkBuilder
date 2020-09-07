@@ -38,6 +38,8 @@ namespace NetworkController.UDP
             handler?.Invoke(this, e);
         }
 
+        public event EventHandler NodeAdded;
+
         public List<Type> _messageTypes = new List<Type>();
 
         public void RegisterMessageTypeEnum(Type type)
@@ -122,6 +124,8 @@ namespace NetworkController.UDP
             _knownNodes.Add(en);
             _logger.LogDebug($"New node added. Number of external nodes: {_knownNodes.Count}");
 
+            NodeAdded(this, null);
+
             return en;
         }
 
@@ -159,6 +163,8 @@ namespace NetworkController.UDP
                 en = new ExternalNode(endpoint, this, _logger, connTracker);
                 _knownNodes.Add(en);
                 _logger.LogDebug("Created new ExternalNode");
+
+                NodeAdded(this, null);
             }
             else
             {

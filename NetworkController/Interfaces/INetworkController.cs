@@ -10,9 +10,24 @@ namespace NetworkController.Interfaces
         IEnumerable<IExternalNode> GetNodes();
         Guid DeviceId { get; }
         void ConnectManually(IPEndPoint endpoint);
-        event EventHandler NetworkChanged;
+        
+        /// <summary>
+        /// Registers enums storing possible message ids
+        /// </summary>
+        /// <param name="type"></param>
         void RegisterMessageTypeEnum(Type type);
         List<Type> GetMessageTypes();
+
+        /// <summary>
+        /// Event fired when any known connection changes its current state.
+        /// This includes establishing new connections and losing
+        /// or suspeding existing ones
+        /// </summary>
+        event EventHandler NetworkChanged;
+        /// <summary>
+        /// Event fired when new node appears in network
+        /// </summary>
+        event EventHandler NodeAdded;
 
         /// <summary>
         /// Function that verifies whether to allow connection reset.
