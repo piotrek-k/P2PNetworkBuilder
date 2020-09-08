@@ -8,10 +8,8 @@ set -x
 rm -i ./nugets/*.nupkg
 
 # Create
-# dotnet build || exit 1
-# ./nuget.exe pack NetworkController.csproj || exit 1
-mkdir -p ./nugets
-dotnet pack --output ./nugets --include-source --interactive
+mkdir -p ./nugets || exit 1
+dotnet pack --output ./nugets --include-source --interactive || exit 1
 
 # Move to local storage
 file_name=`find ./nugets -maxdepth 1 -name "*.nupkg" -print -quit || exit 1`

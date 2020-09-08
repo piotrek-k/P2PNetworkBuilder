@@ -169,7 +169,7 @@ namespace NetworkController.UDP
                 _knownNodes.Add(en);
                 _logger.LogDebug("Created new ExternalNode");
 
-                NodeAdded(this, null);
+                OnNodeAddedEvent(null);
             }
             else
             {
