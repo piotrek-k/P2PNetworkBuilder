@@ -25,7 +25,7 @@ namespace NetworkBuilderServer
                 Console.WriteLine("[listener_port]");
             }
 
-            yINetworkController network = new NetworkManagerFactory()
+            INetworkController network = new NetworkManagerFactory()
                 .AddConnectionResetRule((externalNode) =>
                 {
                     return true;

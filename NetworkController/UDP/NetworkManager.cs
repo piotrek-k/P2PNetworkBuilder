@@ -210,12 +210,19 @@ namespace NetworkController.UDP
                 node.PublicEndpoint = senderIpEndPoint;
             }
 
-            if (node.CurrentEndpoint == null)
+            if (node != null)
             {
-                node.FillCurrentEndpoint(senderIpEndPoint);
-            }
+                if (node.CurrentEndpoint == null)
+                {
+                    node.FillCurrentEndpoint(senderIpEndPoint);
+                }
 
-            node.HandleIncomingBytes(df);
+                node.HandleIncomingBytes(df);
+            }
+            else
+            {
+                _logger.LogWarning("Node rejected. Incoming bytes not handled");
+            }
 
             udpClient.BeginReceive(new AsyncCallback(handleIncomingMessages), null);
         }

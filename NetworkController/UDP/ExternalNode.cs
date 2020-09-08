@@ -325,28 +325,29 @@ namespace NetworkController.UDP
 
             RestoreIfFailed();
 
-            if (dataFrame.MessageType == (int)MessageType.PublicKey &&
-                Ses != null)
-            {
-                // Connection reset request
-                if (NetworkController.ConnectionResetRule(this))
-                {
-                    _logger.LogInformation("Connection reset request accepted");
-                    Aes = null;
-                    Ses = null;
-                    _transmissionManager = new TransmissionManager(NetworkController, this, _logger);
-                    _highestReceivedSendingId = 0;
+            //if (dataFrame.MessageType == (int)MessageType.PublicKey &&
+            //    Ses != null)
+            //{
+            //    // Connection reset request
+            //    if (NetworkController.ConnectionResetRule(this))
+            //    {
+            //        _logger.LogInformation("Connection reset request accepted");
+            //        Aes = null;
+            //        Ses = null;
+            //        _transmissionManager.Destroy();
+            //        _transmissionManager = new TransmissionManager(NetworkController, this, _logger);
+            //        _highestReceivedSendingId = 0;
 
-                    OnConnectionResetEvent(new ConnectionResetEventArgs
-                    {
-                        RelatedNode = this
-                    });
-                }
-                else
-                {
-                    _logger.LogInformation("Connection reset revoked");
-                }
-            }
+            //        OnConnectionResetEvent(new ConnectionResetEventArgs
+            //        {
+            //            RelatedNode = this
+            //        });
+            //    }
+            //    else
+            //    {
+            //        _logger.LogInformation("Connection reset revoked");
+            //    }
+            //}
 
             if (dataFrame.MessageType != (int)MessageType.PublicKey &&
                 dataFrame.MessageType != (int)MessageType.Ping &&
@@ -359,26 +360,35 @@ namespace NetworkController.UDP
             }
 
             byte[] decryptedPayload = null;
-            if (dataFrame.Payload != null)
+            try
             {
-                if (dataFrame.MessageType == (int)MessageType.PrivateKey)
+                if (dataFrame.Payload != null)
                 {
-                    decryptedPayload = Aes.Decrypt(dataFrame.Payload);
+                    if (dataFrame.MessageType == (int)MessageType.PrivateKey)
+                    {
+                        decryptedPayload = Aes.Decrypt(dataFrame.Payload);
+                    }
+                    else if (Ses != null)
+                    {
+                        decryptedPayload = Ses.Decrypt(dataFrame.Payload);
+                    }
+                    else
+                    {
+                        decryptedPayload = dataFrame.Payload;
+                    }
                 }
-                else if (Ses != null)
-                {
-                    decryptedPayload = Ses.Decrypt(dataFrame.Payload);
-                }
-                else
-                {
-                    decryptedPayload = dataFrame.Payload;
-                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"Error while decrypting message. {e.Message}");
+
+                return;
             }
 
             if (dataFrame.MessageType == (int)MessageType.Shutdown)
             {
                 _currentState = ConnectionState.Shutdown;
-                _transmissionManager.Shutdown();
+                _transmissionManager.GentleShutdown();
             }
 
             if (dataFrame.MessageType == (int)MessageType.ReceiveAcknowledge)
@@ -395,7 +405,7 @@ namespace NetworkController.UDP
             {
                 _logger.LogDebug($"Message {dataFrame.RetransmissionId} omitted as it has incorrect transmission id" +
                     $" (got {dataFrame.RetransmissionId} but should be " +
-                    $"{_highestReceivedSendingId != uint.MaxValue: _highestReceivedSendingId + 1 ? 1})");
+                    $"{(_highestReceivedSendingId != uint.MaxValue ? _highestReceivedSendingId + 1 : 1)})");
                 return;
             }
 
@@ -413,7 +423,10 @@ namespace NetworkController.UDP
                     });
                 }
 
-                _highestReceivedSendingId = dataFrame.RetransmissionId;
+                if (dataFrame.RetransmissionId != 0)
+                {
+                    _highestReceivedSendingId = dataFrame.RetransmissionId;
+                }
 
                 if (dataFrame.ExpectAcknowledge)
                 {

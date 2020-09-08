@@ -56,11 +56,17 @@ namespace NetworkController.Threads
             }
         }
 
-        public void Shutdown()
+        public void GentleShutdown()
         {
             //retransmissionThread.Abort();
             _cancelThreadSource.Cancel();
             retransmissionThread = null;
+        }
+
+        public void Destroy()
+        {
+            retransmissionThread.Abort();
+            _logger.LogDebug("Transmission manager destroyed");
         }
 
         public void SendFrameEnsureDelivered(DataFrame df, IPEndPoint destination, Action callback = null)
@@ -191,8 +197,7 @@ namespace NetworkController.Threads
 
         ~TransmissionManager()
         {
-            retransmissionThread.Abort();
-            _logger.LogDebug("Transmission manager destroyed");
+            Destroy();
         }
     }
 }

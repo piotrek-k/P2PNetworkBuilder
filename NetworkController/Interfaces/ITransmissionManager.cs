@@ -13,6 +13,7 @@ namespace NetworkController.Interfaces
         void ReportReceivingDataArrivalAcknowledge(DataFrame df);
 
         void SetupIfNotWorking();
-        void Shutdown();
+        void GentleShutdown();
+        void Destroy();
     }
 }
