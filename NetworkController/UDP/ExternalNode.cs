@@ -238,6 +238,14 @@ namespace NetworkController.UDP
                 }
             }
 
+            if (CurrentState != ConnectionState.Ready &&
+                type != (int)MessageType.PublicKey &&
+                type != (int)MessageType.PrivateKey &&
+                type != (int)MessageType.AdditionalInfo)
+            {
+                _logger.LogWarning("Sending message before handshaking finished");
+            }
+
             var data = new DataFrame
             {
                 MessageType = type,
