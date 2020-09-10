@@ -17,9 +17,10 @@ namespace NetworkController.Models
         PublicKey = 5,
         PrivateKey = 6,
         AdditionalInfo = 7,
+        AdditionalInfoRequest = 8,
 
         // Network building
-        HolePunchingRequest = 8,
-        HolePunchingResponse = 9
+        HolePunchingRequest = 9,
+        HolePunchingResponse = 10
     }
 }

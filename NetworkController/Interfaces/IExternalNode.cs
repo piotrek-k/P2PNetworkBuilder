@@ -1,10 +1,7 @@
 ﻿using NetworkController.DataTransferStructures.Other;
 using NetworkController.Models;
 using System;
-using System.Collections.Generic;
 using System.Net;
-using System.Runtime.CompilerServices;
-using System.Text;
 using static NetworkController.UDP.ExternalNode;
 
 namespace NetworkController.Interfaces
@@ -46,5 +43,11 @@ namespace NetworkController.Interfaces
         /// State of connection between this device and external node
         /// </summary>
         ConnectionState CurrentState { get; }
+
+        /// <summary>
+        /// Use for restoring security keys from permament memory
+        /// </summary>
+        /// <param name="actionOnFailure">action to perform when establishing connection fails, possibly due to incorrect key</param>
+        void RestoreSecurityKeys(byte[] key, byte[] IV, Action actionOnFailure = null);
     }
 }

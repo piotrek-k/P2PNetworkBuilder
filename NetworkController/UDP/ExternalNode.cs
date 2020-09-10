@@ -12,6 +12,7 @@ using System.Linq;
 using NetworkController.Threads;
 using ConnectionsManager.Debugging;
 using NetworkController.DataTransferStructures.Other;
+using NetworkController.UDP.MessageHandlers;
 
 namespace NetworkController.UDP
 {
@@ -139,6 +140,8 @@ namespace NetworkController.UDP
 
         // Building states
         public bool AfterHolePunchingResponse_WaitingForPingResponse { get; set; } = false;
+
+        public const string SAMPLE_ENCRYPTION_VERIFICATION_TEXT = "This is test";
 
         private ExternalNode(INetworkControllerInternal networkController, ILogger logger,
             TrackedConnection tracker, ITransmissionManager transmissionManager = null)
@@ -513,6 +516,28 @@ namespace NetworkController.UDP
             }
 
             Id = newId;
+        }
+
+        public void RestoreSecurityKeys(byte[] key, byte[] IV, Action actionOnFailure=null)
+        {
+            Ses = new SymmetricEncryptionService(key, IV);
+            CurrentState = ConnectionState.Building;
+
+            SendBytes((int)MessageType.AdditionalInfoRequest, new AdditionalInfoRequest()
+            {
+                SampleDataForEncryptionVerification = SAMPLE_ENCRYPTION_VERIFICATION_TEXT
+            }.PackToBytes(), (status) =>
+            {
+                if(status == AckStatus.Failure && actionOnFailure != null)
+                {
+                    actionOnFailure();
+                }
+                else if(status == AckStatus.Success)
+                {
+                    var ai = HandshakeController.GenerateAdditionalInfo(this);
+                    SendBytes((int)MessageType.AdditionalInfo, ai.PackToBytes());
+                }
+            });
         }
     }
 }

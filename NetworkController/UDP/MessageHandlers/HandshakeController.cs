@@ -16,7 +16,7 @@ namespace NetworkController.UDP.MessageHandlers
         {
         }
 
-        private AdditionalInfo generateAdditionalInfo(IExternalNodeInternal source)
+        public static AdditionalInfo GenerateAdditionalInfo(IExternalNodeInternal source)
         {
             return new AdditionalInfo()
             {
@@ -49,7 +49,7 @@ namespace NetworkController.UDP.MessageHandlers
             source.SendBytes((int)MessageType.PrivateKey, dataToSend);
 
             // sending additional info
-            dataToSend = generateAdditionalInfo(source).PackToBytes();
+            dataToSend = GenerateAdditionalInfo(source).PackToBytes();
             source.SendBytes((int)MessageType.AdditionalInfo, dataToSend);
         }
 
@@ -60,7 +60,7 @@ namespace NetworkController.UDP.MessageHandlers
 
             source.Ses = new SymmetricEncryptionService(data.AesKey);
 
-            var dataToSend = generateAdditionalInfo(source).PackToBytes();
+            var dataToSend = GenerateAdditionalInfo(source).PackToBytes();
 
             source.SendBytes((int)MessageType.AdditionalInfo, dataToSend);
         }
@@ -92,6 +92,21 @@ namespace NetworkController.UDP.MessageHandlers
 
             source.CurrentState = ExternalNode.ConnectionState.Ready;
             source.ReportThatConnectionIsSetUp();
+        }
+
+        [IncomingMessage(MessageType.AdditionalInfoRequest)]
+        public void IncomingAdditionalInfoRequest(IExternalNodeInternal source, byte[] bytes)
+        {
+            var data = AdditionalInfoRequest.Unpack(bytes);
+
+            if (!data.SampleDataForEncryptionVerification.Equals(ExternalNode.SAMPLE_ENCRYPTION_VERIFICATION_TEXT))
+            {
+                throw new System.Exception("Failed to properly decrypt message");
+            }
+
+            // sending additional info
+            var dataToSend = GenerateAdditionalInfo(source).PackToBytes();
+            source.SendBytes((int)MessageType.AdditionalInfo, dataToSend);
         }
     }
 }
