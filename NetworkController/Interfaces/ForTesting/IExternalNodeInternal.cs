@@ -1,4 +1,5 @@
-﻿using NetworkController.Encryption;
+﻿using NetworkController.DataTransferStructures.Other;
+using NetworkController.Encryption;
 using NetworkController.Models;
 using NetworkController.UDP;
 using System;
@@ -21,7 +22,7 @@ namespace NetworkController.Interfaces.ForTesting
         IPEndPoint ClaimedPrivateEndpoint { get; set; }
 
         void SendBytes(int type, byte[] payloadOfDataFrame, IPEndPoint endpoint, bool ensureDelivered);
-        void SendReceiveAcknowledge(uint retransmissionId);
+        void SendReceiveAcknowledge(uint retransmissionId, AckStatus status);
 
         new ConnectionState CurrentState { get; set; }
 

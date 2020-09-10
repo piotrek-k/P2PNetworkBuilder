@@ -11,6 +11,7 @@ using System.Threading;
 using System.Linq;
 using NetworkController.Threads;
 using ConnectionsManager.Debugging;
+using NetworkController.DataTransferStructures.Other;
 
 namespace NetworkController.UDP
 {
@@ -181,7 +182,7 @@ namespace NetworkController.UDP
         /// <param name="type"></param>
         /// <param name="payloadOfDataFrame"></param>
         /// <param name="callback"></param>
-        public void SendBytes(int type, byte[] payloadOfDataFrame, Action callback = null)
+        public void SendBytes(int type, byte[] payloadOfDataFrame, Action<AckStatus> callback = null)
         {
             SendBytes(type, payloadOfDataFrame, CurrentEndpoint, true, 0, callback);
         }
@@ -212,13 +213,16 @@ namespace NetworkController.UDP
         /// Send message confirming receiving other message
         /// </summary>
         /// <param name="retransmissionId">id of message that delvery is being confirmed</param>
-        public void SendReceiveAcknowledge(uint retransmissionId)
+        public void SendReceiveAcknowledge(uint retransmissionId, AckStatus status)
         {
-            SendBytes((int)MessageType.ReceiveAcknowledge, null, CurrentEndpoint, false, retransmissionId);
+            SendBytes((int)MessageType.ReceiveAcknowledge, new ReceiveAcknowledge()
+            {
+                Status = status
+            }.PackToBytes(), CurrentEndpoint, false, retransmissionId);
         }
 
         private void SendBytes(int type, byte[] payloadOfDataFrame, IPEndPoint endpoint, bool ensureDelivered,
-            uint retransmissionId, Action callback = null)
+            uint retransmissionId, Action<AckStatus> callback = null)
         {
             byte[] encryptedPaylaod = null;
             if (payloadOfDataFrame != null)
@@ -310,66 +314,65 @@ namespace NetworkController.UDP
 
         public void HandleIncomingBytes(DataFrame dataFrame)
         {
-            _tracker.AddNewEvent(new ConnectionEvents(PossibleEvents.IncomingMessage,
-                GetMessageName(dataFrame.MessageType) + " transm. id: " + dataFrame.RetransmissionId));
-            if (dataFrame.MessageType != (int)MessageType.Ping && dataFrame.MessageType != (int)MessageType.PingResponse)
-            {
-                _logger.LogDebug($"{Id} \t Incoming: {GetMessageName(dataFrame.MessageType) + " transm. id: " + dataFrame.RetransmissionId}");
-            }
-
-            if (CurrentState == ConnectionState.Shutdown)
-            {
-                if (dataFrame.MessageType == (int)MessageType.Restart)
-                {
-                    CurrentState = ConnectionState.Ready;
-                    _transmissionManager.SetupIfNotWorking();
-                }
-                else
-                {
-                    _logger.LogWarning("Received message but ignored it as connection is shut down.");
-                    return;
-                }
-            }
-
-            RestoreIfFailed();
-
-            //if (dataFrame.MessageType == (int)MessageType.PublicKey &&
-            //    Ses != null)
-            //{
-            //    // Connection reset request
-            //    if (NetworkController.ConnectionResetRule(this))
-            //    {
-            //        _logger.LogInformation("Connection reset request accepted");
-            //        Aes = null;
-            //        Ses = null;
-            //        _transmissionManager.Destroy();
-            //        _transmissionManager = new TransmissionManager(NetworkController, this, _logger);
-            //        _highestReceivedSendingId = 0;
-
-            //        OnConnectionResetEvent(new ConnectionResetEventArgs
-            //        {
-            //            RelatedNode = this
-            //        });
-            //    }
-            //    else
-            //    {
-            //        _logger.LogInformation("Connection reset revoked");
-            //    }
-            //}
-
-            if (dataFrame.MessageType != (int)MessageType.PublicKey &&
-                dataFrame.MessageType != (int)MessageType.Ping &&
-                dataFrame.MessageType != (int)MessageType.PingResponse &&
-                dataFrame.MessageType != (int)MessageType.ReceiveAcknowledge &&
-                Ses == null && Aes == null)
-            {
-                _logger.LogError("Received message that cannot be handled at the moment");
-                return;
-            }
-
-            byte[] decryptedPayload = null;
             try
             {
+                _tracker.AddNewEvent(new ConnectionEvents(PossibleEvents.IncomingMessage,
+                GetMessageName(dataFrame.MessageType) + " transm. id: " + dataFrame.RetransmissionId));
+                if (dataFrame.MessageType != (int)MessageType.Ping && dataFrame.MessageType != (int)MessageType.PingResponse)
+                {
+                    _logger.LogDebug($"{Id} \t Incoming: {GetMessageName(dataFrame.MessageType) + " transm. id: " + dataFrame.RetransmissionId}");
+                }
+
+                if (CurrentState == ConnectionState.Shutdown)
+                {
+                    if (dataFrame.MessageType == (int)MessageType.Restart)
+                    {
+                        CurrentState = ConnectionState.Ready;
+                        _transmissionManager.SetupIfNotWorking();
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Received message but ignored it as connection is shut down.");
+                        return;
+                    }
+                }
+
+                RestoreIfFailed();
+
+                //if (dataFrame.MessageType == (int)MessageType.PublicKey &&
+                //    Ses != null)
+                //{
+                //    // Connection reset request
+                //    if (NetworkController.ConnectionResetRule(this))
+                //    {
+                //        _logger.LogInformation("Connection reset request accepted");
+                //        Aes = null;
+                //        Ses = null;
+                //        _transmissionManager.Destroy();
+                //        _transmissionManager = new TransmissionManager(NetworkController, this, _logger);
+                //        _highestReceivedSendingId = 0;
+
+                //        OnConnectionResetEvent(new ConnectionResetEventArgs
+                //        {
+                //            RelatedNode = this
+                //        });
+                //    }
+                //    else
+                //    {
+                //        _logger.LogInformation("Connection reset revoked");
+                //    }
+                //}
+
+                if (dataFrame.MessageType != (int)MessageType.PublicKey &&
+                    dataFrame.MessageType != (int)MessageType.Ping &&
+                    dataFrame.MessageType != (int)MessageType.PingResponse &&
+                    dataFrame.MessageType != (int)MessageType.ReceiveAcknowledge &&
+                    Ses == null && Aes == null)
+                {
+                    throw new Exception("Received message that cannot be handled at the moment");
+                }
+
+                byte[] decryptedPayload = null;
                 if (dataFrame.Payload != null)
                 {
                     if (dataFrame.MessageType == (int)MessageType.PrivateKey)
@@ -385,40 +388,32 @@ namespace NetworkController.UDP
                         decryptedPayload = dataFrame.Payload;
                     }
                 }
-            }
-            catch (Exception e)
-            {
-                _logger.LogError($"Error while decrypting message. {e.Message}");
 
-                return;
-            }
+                if (dataFrame.MessageType == (int)MessageType.Shutdown)
+                {
+                    _currentState = ConnectionState.Shutdown;
+                    _transmissionManager.GentleShutdown();
+                }
 
-            if (dataFrame.MessageType == (int)MessageType.Shutdown)
-            {
-                _currentState = ConnectionState.Shutdown;
-                _transmissionManager.GentleShutdown();
-            }
+                if (dataFrame.MessageType == (int)MessageType.ReceiveAcknowledge)
+                {
+                    _transmissionManager.ReportReceivingDataArrivalAcknowledge(dataFrame, ReceiveAcknowledge.Unpack(decryptedPayload));
+                    return;
+                }
 
-            if (dataFrame.MessageType == (int)MessageType.ReceiveAcknowledge)
-            {
-                _transmissionManager.ReportReceivingDataArrivalAcknowledge(dataFrame);
-                return;
-            }
+                // checking dataFrame.RetransmissionId != 0 because messages that are not meant to be retransmitted leave it to 0
 
-            // checking dataFrame.RetransmissionId != 0 because messages that are not meant to be retransmitted leave it to 0
+                if ((_highestReceivedSendingId + 1 != dataFrame.RetransmissionId
+                    || (_highestReceivedSendingId == uint.MaxValue && dataFrame.RetransmissionId != 1))
+                    && dataFrame.RetransmissionId != 0)
+                {
+                    _logger.LogDebug($"Message {dataFrame.RetransmissionId} omitted as it has incorrect transmission id" +
+                        $" (got {dataFrame.RetransmissionId} but should be " +
+                        $"{(_highestReceivedSendingId != uint.MaxValue ? _highestReceivedSendingId + 1 : 1)})");
+                    return;
+                }
 
-            if ((_highestReceivedSendingId + 1 != dataFrame.RetransmissionId
-                || (_highestReceivedSendingId == uint.MaxValue && dataFrame.RetransmissionId != 1))
-                && dataFrame.RetransmissionId != 0)
-            {
-                _logger.LogDebug($"Message {dataFrame.RetransmissionId} omitted as it has incorrect transmission id" +
-                    $" (got {dataFrame.RetransmissionId} but should be " +
-                    $"{(_highestReceivedSendingId != uint.MaxValue ? _highestReceivedSendingId + 1 : 1)})");
-                return;
-            }
 
-            try
-            {
                 if (!_imc.Call(this, dataFrame.MessageType, decryptedPayload))
                 {
                     // Message not found. Pass it further.
@@ -438,13 +433,18 @@ namespace NetworkController.UDP
 
                 if (dataFrame.ExpectAcknowledge)
                 {
-                    SendReceiveAcknowledge(dataFrame.RetransmissionId);
+                    SendReceiveAcknowledge(dataFrame.RetransmissionId, AckStatus.Success);
                 }
             }
             catch (Exception e)
             {
                 _logger.LogError($"Error while processing message number {dataFrame.RetransmissionId} of type" +
                     $" {GetMessageName((int)dataFrame.MessageType)}({(int)dataFrame.MessageType}). {e.Message}");
+
+                if (dataFrame.ExpectAcknowledge)
+                {
+                    SendReceiveAcknowledge(dataFrame.RetransmissionId, AckStatus.Failure);
+                }
             }
         }
 

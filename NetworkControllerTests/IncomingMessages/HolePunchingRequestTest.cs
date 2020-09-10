@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Moq;
 using NetworkController.DataTransferStructures;
+using NetworkController.DataTransferStructures.Other;
 using NetworkController.Interfaces.ForTesting;
 using NetworkController.Models;
 using NetworkController.UDP;
@@ -46,9 +47,9 @@ namespace NetworkControllerTests.IncomingMessages
             externalNodeMock.Setup(x => x.ClaimedPrivateEndpoint).Returns(IPEndPoint.Parse("192.168.1.1:13000"));
 
             // Extracting sent data
-            externalNodeMock.Setup(x => x.SendBytes(It.IsAny<int>(), It.IsAny<byte[]>(), It.IsAny<Action>()))
+            externalNodeMock.Setup(x => x.SendBytes(It.IsAny<int>(), It.IsAny<byte[]>(), It.IsAny<Action<AckStatus>>()))
                .Callback<int, byte[], Action>((mt, bytes, c) => responseToExternalNode = HolePunchingResponse.Unpack(bytes));
-            targetNodeMock.Setup(x => x.SendBytes(It.IsAny<int>(), It.IsAny<byte[]>(), It.IsAny<Action>()))
+            targetNodeMock.Setup(x => x.SendBytes(It.IsAny<int>(), It.IsAny<byte[]>(), It.IsAny<Action<AckStatus>>()))
                .Callback<int, byte[], Action>((mt, bytes, c) => responseToTargetNode = HolePunchingResponse.Unpack(bytes));
         }
 
@@ -68,10 +69,10 @@ namespace NetworkControllerTests.IncomingMessages
             // Assert
             externalNodeMock.Verify(x => x.SendBytes(
                 It.Is<int>(x => x == (int)MessageType.HolePunchingResponse),
-                It.IsAny<byte[]>(), It.IsAny<Action>()), Times.Once);
+                It.IsAny<byte[]>(), It.IsAny<Action<AckStatus>>()), Times.Once);
             targetNodeMock.Verify(x => x.SendBytes(
                 It.Is<int>(x => x == (int)MessageType.HolePunchingResponse),
-                It.IsAny<byte[]>(), It.IsAny<Action>()), Times.Once);
+                It.IsAny<byte[]>(), It.IsAny<Action<AckStatus>>()), Times.Once);
         }
 
         [Fact]

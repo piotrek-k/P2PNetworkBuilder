@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using NetworkController.DataTransferStructures;
+using NetworkController.DataTransferStructures.Other;
 using NetworkController.Interfaces;
 using NetworkController.Interfaces.ForTesting;
 using Newtonsoft.Json.Converters;
@@ -21,7 +23,7 @@ namespace NetworkController.Threads
         private readonly IExternalNodeInternal _externalNode;
         private ILogger _logger;
         private object counterAndQueueLock = new object();
-        private Queue<(WaitingMessage, Action)> _dataframeQueue = new Queue<(WaitingMessage, Action)>();
+        private Queue<(WaitingMessage, Action<AckStatus>)> _dataframeQueue = new Queue<(WaitingMessage, Action<AckStatus>)>();
         private uint currentSendingId = 1;
         private uint allSentMessagesCounter = 1;
         private object threadCheckLock = new object();
@@ -69,7 +71,7 @@ namespace NetworkController.Threads
             _logger.LogDebug("Transmission manager destroyed");
         }
 
-        public void SendFrameEnsureDelivered(DataFrame df, IPEndPoint destination, Action callback = null)
+        public void SendFrameEnsureDelivered(DataFrame df, IPEndPoint destination, Action<AckStatus> callback = null)
         {
             if (retransmissionThread == null)
             {
@@ -105,7 +107,7 @@ namespace NetworkController.Threads
             _networkController.SendBytes(df.PackToBytes(), destination);
         }
 
-        public void ReportReceivingDataArrivalAcknowledge(DataFrame df)
+        public void ReportReceivingDataArrivalAcknowledge(DataFrame df, ReceiveAcknowledge receivedPayload)
         {
             if (retransmissionThread == null)
             {
@@ -116,8 +118,8 @@ namespace NetworkController.Threads
             {
                 if (df.RetransmissionId == currentSendingId)
                 {
-                    (WaitingMessage wm, Action callback) = _dataframeQueue.Dequeue();
-                    callback?.Invoke();
+                    (WaitingMessage wm, Action<AckStatus> callback) = _dataframeQueue.Dequeue();
+                    callback?.Invoke(receivedPayload.Status);
 
                     if (currentSendingId != uint.MaxValue)
                     {
@@ -159,7 +161,7 @@ namespace NetworkController.Threads
                         Monitor.Wait(counterAndQueueLock);
                     }
 
-                    Action cb;
+                    Action<AckStatus> cb;
                     (wm, cb) = _dataframeQueue.Peek();
                     idOfRetransmittedMessage = currentSendingId;
                     //wm.DataFrame.RetransmissionId = currentSendingId;

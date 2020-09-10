@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using NetworkController.Interfaces;
 using NetworkController;
 using ConnectionsManager.Debugging;
+using NetworkController.DataTransferStructures.Other;
 
 namespace NetworkControllerTests.IncomingMessages
 {
@@ -64,7 +65,7 @@ namespace NetworkControllerTests.IncomingMessages
             // Assert
             externalNodeMock.Verify(x => x.SendBytes(
                 It.Is<int>(x => x == (int)MessageType.PrivateKey),
-                It.IsAny<byte[]>(), It.IsAny<Action>()), Times.Once);
+                It.IsAny<byte[]>(), It.IsAny<Action<AckStatus>>()), Times.Once);
         }
 
         [Fact]
@@ -83,7 +84,7 @@ namespace NetworkControllerTests.IncomingMessages
             // Assert
             externalNodeMock.Verify(x => x.SendBytes(
                 It.Is<int>(x => x == (int)MessageType.AdditionalInfo),
-                It.IsAny<byte[]>(), It.IsAny<Action>()), Times.Once);
+                It.IsAny<byte[]>(), It.IsAny<Action<AckStatus>>()), Times.Once);
         }
 
         [Fact]
@@ -103,7 +104,7 @@ namespace NetworkControllerTests.IncomingMessages
             });
 
             AdditionalInfo responseBeingSent = null;
-            externalNodeMock.Setup(x => x.SendBytes(It.IsAny<int>(), It.IsAny<byte[]>(), It.IsAny<Action>()))
+            externalNodeMock.Setup(x => x.SendBytes(It.IsAny<int>(), It.IsAny<byte[]>(), It.IsAny<Action<AckStatus>>()))
                .Callback<int, byte[], Action>((mt, bytes, c) => responseBeingSent = AdditionalInfo.Unpack(bytes));
 
             // Act
@@ -137,7 +138,7 @@ namespace NetworkControllerTests.IncomingMessages
             // Assert
             transmissionManagerMock.Verify(x => x.SendFrameEnsureDelivered(
                 It.Is<DataFrame>(y => y.MessageType == (int)MessageType.HolePunchingRequest),
-                It.IsAny<IPEndPoint>(), It.IsAny<Action>()),
+                It.IsAny<IPEndPoint>(), It.IsAny<Action<AckStatus>>()),
                 Times.Exactly(2));
         }
 

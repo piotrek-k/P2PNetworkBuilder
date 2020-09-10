@@ -1,4 +1,5 @@
-﻿using NetworkController.Models;
+﻿using NetworkController.DataTransferStructures.Other;
+using NetworkController.Models;
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -20,7 +21,7 @@ namespace NetworkController.Interfaces
         /// <param name="type">MessageType enum</param>
         /// <param name="bytes">Payload to send to Node</param>
         /// <param name="callback">Function that will be called after receiving data arrival acknowledge from another node</param>
-        void SendBytes(int type, byte[] bytes, Action callback = null);
+        void SendBytes(int type, byte[] bytes, Action<AckStatus> callback = null);
         /// <summary>
         /// Send message without tracking and delivery check. Works like UDP diagram.
         /// </summary>

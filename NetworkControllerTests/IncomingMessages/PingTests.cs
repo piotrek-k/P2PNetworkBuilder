@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Moq;
+using NetworkController.DataTransferStructures.Other;
 using NetworkController.Interfaces.ForTesting;
 using NetworkController.Models;
 using NetworkController.UDP.MessageHandlers;
@@ -66,7 +67,7 @@ namespace NetworkControllerTests.IncomingMessages
 
             // Assert
             externalNodeMock.Verify(x => x.SendBytes(
-                It.Is<int>(y => y == (int)MessageType.PingResponse), It.IsAny<byte[]>(), It.IsAny<Action>()),
+                It.Is<int>(y => y == (int)MessageType.PingResponse), It.IsAny<byte[]>(), It.IsAny<Action<AckStatus>>()),
                 Times.Never);
         }
     }

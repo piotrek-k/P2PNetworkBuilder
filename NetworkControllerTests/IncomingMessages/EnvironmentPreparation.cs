@@ -1,5 +1,6 @@
 ﻿using Moq;
 using NetworkController;
+using NetworkController.DataTransferStructures.Other;
 using NetworkController.Interfaces;
 using NetworkController.Interfaces.ForTesting;
 using NetworkController.Models;
@@ -18,12 +19,12 @@ namespace NetworkControllerTests.IncomingMessages
             Mock<ITransmissionManager> transmissionManagerMockTwo,
             ExternalNode nodeOne, ExternalNode nodeTwo)
         {
-            transmissionManagerMockOne.Setup(x => x.SendFrameEnsureDelivered(It.IsAny<DataFrame>(), It.IsAny<IPEndPoint>(), It.IsAny<Action>()))
+            transmissionManagerMockOne.Setup(x => x.SendFrameEnsureDelivered(It.IsAny<DataFrame>(), It.IsAny<IPEndPoint>(), It.IsAny<Action<AckStatus>>()))
               .Callback<DataFrame, IPEndPoint, Action>((df, ep, c) => nodeTwo.HandleIncomingBytes(df));
             transmissionManagerMockOne.Setup(x => x.SendFrameAndForget(It.IsAny<DataFrame>(), It.IsAny<IPEndPoint>()))
               .Callback<DataFrame, IPEndPoint>((df, ep) => nodeTwo.HandleIncomingBytes(df));
 
-            transmissionManagerMockTwo.Setup(x => x.SendFrameEnsureDelivered(It.IsAny<DataFrame>(), It.IsAny<IPEndPoint>(), It.IsAny<Action>()))
+            transmissionManagerMockTwo.Setup(x => x.SendFrameEnsureDelivered(It.IsAny<DataFrame>(), It.IsAny<IPEndPoint>(), It.IsAny<Action<AckStatus>>()))
               .Callback<DataFrame, IPEndPoint, Action>((df, ep, c) => nodeOne.HandleIncomingBytes(df));
             transmissionManagerMockTwo.Setup(x => x.SendFrameAndForget(It.IsAny<DataFrame>(), It.IsAny<IPEndPoint>()))
               .Callback<DataFrame, IPEndPoint>((df, ep) => nodeOne.HandleIncomingBytes(df));
