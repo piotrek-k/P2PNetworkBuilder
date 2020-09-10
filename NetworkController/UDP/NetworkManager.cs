@@ -27,7 +27,7 @@ namespace NetworkController.UDP
         /// </summary>
         public NetworkBehaviourTracker _tracker;
 
-        public Func<IExternalNode, bool> ConnectionResetRule { get; set; } = (node) => true;
+        public Func<IExternalNode, bool> ConnectionResetRule { get; set; } = (node) => false;
         public Func<Guid, bool> NewUnannouncedConnectionAllowanceRule { get; set; } = (guid) => true;
 
         public event EventHandler NetworkChanged;

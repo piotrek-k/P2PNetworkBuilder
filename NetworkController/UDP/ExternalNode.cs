@@ -143,6 +143,10 @@ namespace NetworkController.UDP
 
         public const string SAMPLE_ENCRYPTION_VERIFICATION_TEXT = "This is test";
 
+        // Connection reset
+        public DateTimeOffset? ConnectionResetExpirationTime = null;
+        public const int CONNECTION_RESET_ALLOWANCE_WINDOW_MS = 5000;
+
         private ExternalNode(INetworkControllerInternal networkController, ILogger logger,
             TrackedConnection tracker, ITransmissionManager transmissionManager = null)
         {
@@ -342,29 +346,29 @@ namespace NetworkController.UDP
 
                 RestoreIfFailed();
 
-                //if (dataFrame.MessageType == (int)MessageType.PublicKey &&
-                //    Ses != null)
-                //{
-                //    // Connection reset request
-                //    if (NetworkController.ConnectionResetRule(this))
-                //    {
-                //        _logger.LogInformation("Connection reset request accepted");
-                //        Aes = null;
-                //        Ses = null;
-                //        _transmissionManager.Destroy();
-                //        _transmissionManager = new TransmissionManager(NetworkController, this, _logger);
-                //        _highestReceivedSendingId = 0;
+                if (dataFrame.MessageType == (int)MessageType.PublicKey && ConnectionResetExpirationTime != null &&
+                    ConnectionResetExpirationTime > DateTimeOffset.UtcNow)
+                {
+                    // reset request was sent by this node and exernal node sent PublicKey as response
 
-                //        OnConnectionResetEvent(new ConnectionResetEventArgs
-                //        {
-                //            RelatedNode = this
-                //        });
-                //    }
-                //    else
-                //    {
-                //        _logger.LogInformation("Connection reset revoked");
-                //    }
-                //}
+                    ConnectionResetExpirationTime = null;
+                    PerformConnectionReset();
+                }
+
+                if (dataFrame.MessageType == (int)MessageType.ResetRequest)
+                {
+                    // other Node lost keys and wants to reset connection
+
+                    if (NetworkController.ConnectionResetRule(this))
+                    {
+                        _logger.LogInformation("Connection reset request accepted");
+                        PerformConnectionReset();
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Connection reset revoked");
+                    }
+                }
 
                 if (dataFrame.MessageType != (int)MessageType.PublicKey &&
                     dataFrame.MessageType != (int)MessageType.Ping &&
@@ -451,6 +455,32 @@ namespace NetworkController.UDP
             }
         }
 
+        private void PerformConnectionReset()
+        {
+            Aes = null;
+            Ses = null;
+            _transmissionManager.Destroy();
+            _transmissionManager = new TransmissionManager(NetworkController, this, _logger);
+            _highestReceivedSendingId = 0;
+
+            // begin handshake
+            InitializeConnection();
+
+            OnConnectionResetEvent(new ConnectionResetEventArgs
+            {
+                RelatedNode = this
+            });
+        }
+
+        /// <summary>
+        /// Asks Node to perform handshaking again. If Node agrees, encryption keys will be cleared.
+        /// </summary>
+        public void RestartConnection()
+        {
+            SendBytes((int)MessageType.ResetRequest, new ResetRequest().PackToBytes());
+            ConnectionResetExpirationTime = DateTimeOffset.UtcNow + TimeSpan.FromMilliseconds(CONNECTION_RESET_ALLOWANCE_WINDOW_MS);
+        }
+
         /// <summary>
         /// If connection is failed, set it to Ready and restore all necessary threads
         /// that might be suspended during failure
@@ -518,7 +548,7 @@ namespace NetworkController.UDP
             Id = newId;
         }
 
-        public void RestoreSecurityKeys(byte[] key, byte[] IV, Action actionOnFailure=null)
+        public void RestoreSecurityKeys(byte[] key, byte[] IV, Action actionOnFailure = null)
         {
             Ses = new SymmetricEncryptionService(key, IV);
             CurrentState = ConnectionState.Building;
@@ -528,11 +558,11 @@ namespace NetworkController.UDP
                 SampleDataForEncryptionVerification = SAMPLE_ENCRYPTION_VERIFICATION_TEXT
             }.PackToBytes(), (status) =>
             {
-                if(status == AckStatus.Failure && actionOnFailure != null)
+                if (status == AckStatus.Failure && actionOnFailure != null)
                 {
                     actionOnFailure();
                 }
-                else if(status == AckStatus.Success)
+                else if (status == AckStatus.Success)
                 {
                     var ai = HandshakeController.GenerateAdditionalInfo(this);
                     SendBytes((int)MessageType.AdditionalInfo, ai.PackToBytes());

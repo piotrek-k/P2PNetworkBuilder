@@ -49,5 +49,9 @@ namespace NetworkController.Interfaces
         /// </summary>
         /// <param name="actionOnFailure">action to perform when establishing connection fails, possibly due to incorrect key</param>
         void RestoreSecurityKeys(byte[] key, byte[] IV, Action actionOnFailure = null);
+        /// <summary>
+        /// Sends request to other node to perform handshaking again
+        /// </summary>
+        void RestartConnection();
     }
 }
