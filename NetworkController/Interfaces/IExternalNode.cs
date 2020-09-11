@@ -53,5 +53,6 @@ namespace NetworkController.Interfaces
         /// Sends request to other node to perform handshaking again
         /// </summary>
         void RestartConnection();
+        bool IsHandshakeCompleted { get; }
     }
 }

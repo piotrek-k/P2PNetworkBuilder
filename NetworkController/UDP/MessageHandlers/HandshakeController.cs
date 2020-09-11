@@ -91,6 +91,7 @@ namespace NetworkController.UDP.MessageHandlers
             }
 
             source.CurrentState = ExternalNode.ConnectionState.Ready;
+            source.IsHandshakeCompleted = true;
             source.ReportThatConnectionIsSetUp();
         }
 

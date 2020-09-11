@@ -13,6 +13,7 @@ using NetworkController.Threads;
 using ConnectionsManager.Debugging;
 using NetworkController.DataTransferStructures.Other;
 using NetworkController.UDP.MessageHandlers;
+using NetworkController.Helpers;
 
 namespace NetworkController.UDP
 {
@@ -121,6 +122,11 @@ namespace NetworkController.UDP
         }
 
         /// <summary>
+        /// If true, you can safely send messages
+        /// </summary>
+        public bool IsHandshakeCompleted { get; set; } = false;
+
+        /// <summary>
         /// Thread for keeping connection active by periodically sending pings
         /// </summary>
         private KeepaliveThread _keepaliveThread;
@@ -145,7 +151,7 @@ namespace NetworkController.UDP
 
         // Connection reset
         public DateTimeOffset? ConnectionResetExpirationTime = null;
-        public const int CONNECTION_RESET_ALLOWANCE_WINDOW_MS = 5000;
+        public const int CONNECTION_RESET_ALLOWANCE_WINDOW_SEC = 60 * 5;
 
         private ExternalNode(INetworkControllerInternal networkController, ILogger logger,
             TrackedConnection tracker, ITransmissionManager transmissionManager = null)
@@ -224,7 +230,7 @@ namespace NetworkController.UDP
         {
             SendBytes((int)MessageType.ReceiveAcknowledge, new ReceiveAcknowledge()
             {
-                Status = status
+                Status = (int)status
             }.PackToBytes(), CurrentEndpoint, false, retransmissionId);
         }
 
@@ -276,7 +282,10 @@ namespace NetworkController.UDP
             }
 
             _tracker.AddNewEvent(new ConnectionEvents(PossibleEvents.OutgoingMessage, GetMessageName(type) + " transm. id: " + data.RetransmissionId));
-            //_logger.LogDebug($"{Id} \t Outgoing: {GetMessageName(data.MessageType) + " transm. id: " + data.RetransmissionId}");
+            if (!MessageTypeGroups.IsKeepaliveNoLogicRelatedMessage(data.MessageType))
+            {
+                _logger.LogDebug($"{Id} \t Outgoing: {GetMessageName(data.MessageType) + " transm. id: " + data.RetransmissionId}");
+            }
         }
 
         /// <summary>
@@ -324,8 +333,8 @@ namespace NetworkController.UDP
             try
             {
                 _tracker.AddNewEvent(new ConnectionEvents(PossibleEvents.IncomingMessage,
-                GetMessageName(dataFrame.MessageType) + " transm. id: " + dataFrame.RetransmissionId));
-                if (dataFrame.MessageType != (int)MessageType.Ping && dataFrame.MessageType != (int)MessageType.PingResponse)
+                    GetMessageName(dataFrame.MessageType) + " transm. id: " + dataFrame.RetransmissionId));
+                if (!MessageTypeGroups.IsKeepaliveNoLogicRelatedMessage(dataFrame.MessageType))
                 {
                     _logger.LogDebug($"{Id} \t Incoming: {GetMessageName(dataFrame.MessageType) + " transm. id: " + dataFrame.RetransmissionId}");
                 }
@@ -352,28 +361,40 @@ namespace NetworkController.UDP
                     // reset request was sent by this node and exernal node sent PublicKey as response
 
                     ConnectionResetExpirationTime = null;
-                    PerformConnectionReset();
+                    PerformConnectionReset(false);
                 }
 
                 if (dataFrame.MessageType == (int)MessageType.ResetRequest)
                 {
                     // other Node lost keys and wants to reset connection
 
+                    if (dataFrame.ExpectAcknowledge)
+                    {
+                        SendReceiveAcknowledge(dataFrame.RetransmissionId, AckStatus.Success);
+                    }
+
                     if (NetworkController.ConnectionResetRule(this))
                     {
                         _logger.LogInformation("Connection reset request accepted");
-                        PerformConnectionReset();
+                        PerformConnectionReset(true);
+
+                        return;
                     }
                     else
                     {
                         _logger.LogInformation("Connection reset revoked");
+
+                        return;
                     }
                 }
 
-                if (dataFrame.MessageType != (int)MessageType.PublicKey &&
-                    dataFrame.MessageType != (int)MessageType.Ping &&
-                    dataFrame.MessageType != (int)MessageType.PingResponse &&
-                    dataFrame.MessageType != (int)MessageType.ReceiveAcknowledge &&
+                if (MessageTypeGroups.IsHandshakeRelatedAndShouldntBeDoneMoreThanOnce(dataFrame.MessageType) &&
+                    IsHandshakeCompleted)
+                {
+                    throw new Exception("Handshake related message when handshake is completed");
+                }
+
+                if (!MessageTypeGroups.DoesntRequireEncryption(dataFrame.MessageType) &&
                     Ses == null && Aes == null)
                 {
                     throw new Exception("Received message that cannot be handled at the moment");
@@ -455,16 +476,22 @@ namespace NetworkController.UDP
             }
         }
 
-        private void PerformConnectionReset()
+        private void PerformConnectionReset(bool sendPublicKey)
         {
+            _logger.LogInformation("Resetting connection");
+
             Aes = null;
             Ses = null;
             _transmissionManager.Destroy();
             _transmissionManager = new TransmissionManager(NetworkController, this, _logger);
             _highestReceivedSendingId = 0;
+            IsHandshakeCompleted = false;
 
-            // begin handshake
-            InitializeConnection();
+            if (sendPublicKey)
+            {
+                // begin handshake
+                InitializeConnection();
+            }
 
             OnConnectionResetEvent(new ConnectionResetEventArgs
             {
@@ -478,7 +505,7 @@ namespace NetworkController.UDP
         public void RestartConnection()
         {
             SendBytes((int)MessageType.ResetRequest, new ResetRequest().PackToBytes());
-            ConnectionResetExpirationTime = DateTimeOffset.UtcNow + TimeSpan.FromMilliseconds(CONNECTION_RESET_ALLOWANCE_WINDOW_MS);
+            ConnectionResetExpirationTime = DateTimeOffset.UtcNow.AddSeconds(CONNECTION_RESET_ALLOWANCE_WINDOW_SEC);
         }
 
         /// <summary>

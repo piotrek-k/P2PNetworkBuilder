@@ -34,5 +34,7 @@ namespace NetworkController.Interfaces.ForTesting
         void ReportIncomingPingResponse();
         void ReportConnectionFailure();
         void ReportThatConnectionIsSetUp();
+
+        new bool IsHandshakeCompleted { get; set; }
     }
 }

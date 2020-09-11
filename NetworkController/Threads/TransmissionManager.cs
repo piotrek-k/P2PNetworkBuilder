@@ -67,7 +67,9 @@ namespace NetworkController.Threads
 
         public void Destroy()
         {
-            retransmissionThread.Abort();
+            //retransmissionThread.Abort();
+            // temporal solution
+            GentleShutdown();
             _logger.LogDebug("Transmission manager destroyed");
         }
 
@@ -119,7 +121,7 @@ namespace NetworkController.Threads
                 if (df.RetransmissionId == currentSendingId)
                 {
                     (WaitingMessage wm, Action<AckStatus> callback) = _dataframeQueue.Dequeue();
-                    callback?.Invoke(receivedPayload.Status);
+                    callback?.Invoke((AckStatus)receivedPayload.Status);
 
                     if (currentSendingId != uint.MaxValue)
                     {
@@ -161,6 +163,11 @@ namespace NetworkController.Threads
                         Monitor.Wait(counterAndQueueLock);
                     }
 
+                    if (_cancelThread.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
                     Action<AckStatus> cb;
                     (wm, cb) = _dataframeQueue.Peek();
                     idOfRetransmittedMessage = currentSendingId;
@@ -192,6 +199,11 @@ namespace NetworkController.Threads
                         {
                             Monitor.Wait(retransmissionSleepLock, MsBetweenRetransmissions);
                         }
+                    }
+
+                    if (_cancelThread.IsCancellationRequested)
+                    {
+                        break;
                     }
                 }
             }

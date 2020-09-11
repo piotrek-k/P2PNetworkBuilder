@@ -8,6 +8,6 @@ namespace NetworkController.DataTransferStructures
     [Serializable]
     public class ReceiveAcknowledge : ConvertableToJSONBytes<ReceiveAcknowledge>
     {
-        public AckStatus Status { get; set; }
+        public int Status { get; set; }
     }
 }
