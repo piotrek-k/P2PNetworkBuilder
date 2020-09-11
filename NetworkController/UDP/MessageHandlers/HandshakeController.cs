@@ -72,16 +72,16 @@ namespace NetworkController.UDP.MessageHandlers
 
             source.ClaimedPrivateEndpoint = new IPEndPoint(IPAddress.Parse(data.ClaimedPrivateIPv4), data.ClaimedPrivatePort);
 
-            foreach(var incomingNodeId in data.KnownNodes)
+            foreach (var incomingNodeId in data.KnownNodes)
             {
-                if(incomingNodeId == source.NetworkController.DeviceId)
+                if (incomingNodeId == source.NetworkController.DeviceId)
                 {
                     continue;
                 }
 
                 var foundNode = source.NetworkController.GetNodes().FirstOrDefault(x => x.Id == incomingNodeId);
 
-                if(foundNode == null)
+                if (foundNode == null)
                 {
                     source.SendBytes((int)MessageType.HolePunchingRequest, new HolePunchingRequest()
                     {
@@ -98,12 +98,7 @@ namespace NetworkController.UDP.MessageHandlers
         [IncomingMessage(MessageType.AdditionalInfoRequest)]
         public void IncomingAdditionalInfoRequest(IExternalNodeInternal source, byte[] bytes)
         {
-            var data = AdditionalInfoRequest.Unpack(bytes);
-
-            if (!data.SampleDataForEncryptionVerification.Equals(ExternalNode.SAMPLE_ENCRYPTION_VERIFICATION_TEXT))
-            {
-                throw new System.Exception("Failed to properly decrypt message");
-            }
+            //var data = AdditionalInfoRequest.Unpack(bytes);
 
             // sending additional info
             var dataToSend = GenerateAdditionalInfo(source).PackToBytes();

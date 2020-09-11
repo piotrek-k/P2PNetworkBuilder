@@ -1,4 +1,5 @@
-﻿using NetworkController.Interfaces.ForTesting;
+﻿using Microsoft.Extensions.Logging;
+using NetworkController.Interfaces.ForTesting;
 using NetworkController.Models;
 using System;
 using System.Collections.Generic;
@@ -18,6 +19,7 @@ namespace NetworkController.Threads
         private int TempWaitingTime = MsBetweenKeepalivePings - MsBetweenInitialPings;
         private readonly IExternalNodeInternal _externalNode;
         private readonly CancellationToken _cts;
+        private readonly ILogger _logger;
 
         private DateTimeOffset _lastRequestTime;
         private DateTimeOffset _lastResponseTime;
@@ -27,10 +29,11 @@ namespace NetworkController.Threads
         private object _keepaliveThreadLock = new object();
         private bool _keepaliveThreadActive = false;
 
-        public KeepaliveThread(IExternalNodeInternal externalNode, CancellationToken cts)
+        public KeepaliveThread(IExternalNodeInternal externalNode, CancellationToken cts, ILogger logger)
         {
             _externalNode = externalNode;
             _cts = cts;
+            _logger = logger;
         }
 
         public void InitialConnectionPings()
@@ -105,6 +108,9 @@ namespace NetworkController.Threads
 
                     Thread.Sleep(TempWaitingTime);
                 }
+
+                _logger.LogDebug("Keepalive thread finished");
+                _failedPingAttempts = 0;
             }).Start();
         }
 

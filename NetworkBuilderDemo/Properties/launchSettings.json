@@ -2,7 +2,7 @@
   "profiles": {
     "NetworkBuilderDemo": {
       "commandName": "Project",
-      "commandLineArgs": "13000 127.0.0.1:13001"
+      "commandLineArgs": "13000 0a6ac9c6-8c5d-47a0-93c3-62c8f301043c"
     },
     "Docker": {
       "commandName": "Docker"

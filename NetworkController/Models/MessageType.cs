@@ -18,10 +18,12 @@ namespace NetworkController.Models
         PrivateKey = 6,
         AdditionalInfo = 7,
         AdditionalInfoRequest = 8,
-        ResetRequest = 9,
+        ResetRequest = 9,           // use when encryption keys are lost
 
         // Network building
         HolePunchingRequest = 10,
-        HolePunchingResponse = 11
+        HolePunchingResponse = 11,
+
+        ConnectionRestoreRequest = 12,   // use when you've got encryption keys but have to sync message counters
     }
 }

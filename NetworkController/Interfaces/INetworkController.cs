@@ -8,8 +8,8 @@ namespace NetworkController.Interfaces
     {
         void StartListening(int port = 13000);
         IEnumerable<IExternalNode> GetNodes();
-        Guid DeviceId { get; }
-        void ConnectManually(IPEndPoint endpoint);
+        Guid DeviceId { get; set; }
+        IExternalNode ConnectManually(IPEndPoint endpoint, bool initializeConnection = true, Guid? knownId = null);
         
         /// <summary>
         /// Registers enums storing possible message ids

@@ -50,6 +50,11 @@ namespace NetworkController.Interfaces
         /// <param name="actionOnFailure">action to perform when establishing connection fails, possibly due to incorrect key</param>
         void RestoreSecurityKeys(byte[] key, byte[] IV, Action actionOnFailure = null);
         /// <summary>
+        /// Use to get security keys in order to store it in permament memory
+        /// </summary>
+        /// <returns></returns>
+        (byte[] key, byte[] IV) GetSecurityKeys();
+        /// <summary>
         /// Sends request to other node to perform handshaking again
         /// </summary>
         void RestartConnection();

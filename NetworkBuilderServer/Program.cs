@@ -49,7 +49,7 @@ namespace NetworkBuilderServer
 
             network.StartListening(parsedPort);
 
-            Console.WriteLine("Working");
+            Console.WriteLine($"Current id {network.DeviceId}");
 
             await Task.Delay(Timeout.Infinite, applicationExitTokenSource.Token);
         }

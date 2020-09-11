@@ -161,7 +161,7 @@ namespace NetworkController.UDP
             _imc = new IncomingMessageCaller(logger);
             _logger = logger;
             _allChildThreadsCancellationToken = new CancellationTokenSource();
-            _keepaliveThread = new KeepaliveThread(this, _allChildThreadsCancellationToken.Token);
+            _keepaliveThread = new KeepaliveThread(this, _allChildThreadsCancellationToken.Token, _logger);
 
             if (transmissionManager == null)
             {
@@ -417,6 +417,25 @@ namespace NetworkController.UDP
                     }
                 }
 
+                if (dataFrame.MessageType == (int)MessageType.ConnectionRestoreRequest)
+                {
+                    var data = ConnectionRestoreRequest.Unpack(dataFrame.Payload);
+
+                    if (!data.SampleDataForEncryptionVerification.Equals(SAMPLE_ENCRYPTION_VERIFICATION_TEXT))
+                    {
+                        throw new Exception("Failed to properly decrypt message");
+                    }
+                    else
+                    {
+                        ResetMessageCounter();
+                        SendReceiveAcknowledge(dataFrame.RetransmissionId, AckStatus.Success);
+
+                        IsHandshakeCompleted = false;
+
+                        return;
+                    }
+                }
+
                 if (dataFrame.MessageType == (int)MessageType.Shutdown)
                 {
                     _currentState = ConnectionState.Shutdown;
@@ -468,6 +487,11 @@ namespace NetworkController.UDP
             {
                 _logger.LogError($"Error while processing message number {dataFrame.RetransmissionId} of type" +
                     $" {GetMessageName((int)dataFrame.MessageType)}({(int)dataFrame.MessageType}). {e.Message}");
+
+                if (dataFrame.RetransmissionId != 0)
+                {
+                    _highestReceivedSendingId = dataFrame.RetransmissionId;
+                }
 
                 if (dataFrame.ExpectAcknowledge)
                 {
@@ -548,11 +572,9 @@ namespace NetworkController.UDP
 
         public void FillCurrentEndpoint(IPEndPoint proposedEndpoint)
         {
-            if (CurrentEndpoint == null)
-            {
-                CurrentEndpoint = proposedEndpoint;
-            }
-            else
+            CurrentEndpoint = proposedEndpoint;
+
+            if (CurrentEndpoint != null)
             {
                 _logger.LogWarning("Trying to fill currentEndpoint when it's already filled");
             }
@@ -575,26 +597,48 @@ namespace NetworkController.UDP
             Id = newId;
         }
 
+        public void ResetMessageCounter()
+        {
+            _logger.LogInformation("Counter reset");
+            _transmissionManager.Destroy();
+            _transmissionManager = new TransmissionManager(NetworkController, this, _logger);
+            _highestReceivedSendingId = 0;
+        }
+
         public void RestoreSecurityKeys(byte[] key, byte[] IV, Action actionOnFailure = null)
         {
             Ses = new SymmetricEncryptionService(key, IV);
             CurrentState = ConnectionState.Building;
 
-            SendBytes((int)MessageType.AdditionalInfoRequest, new AdditionalInfoRequest()
+            SendBytes((int)MessageType.ConnectionRestoreRequest, new ConnectionRestoreRequest()
             {
                 SampleDataForEncryptionVerification = SAMPLE_ENCRYPTION_VERIFICATION_TEXT
-            }.PackToBytes(), (status) =>
+            }.PackToBytes(), (crr_status) =>
             {
-                if (status == AckStatus.Failure && actionOnFailure != null)
+                if (crr_status == AckStatus.Failure && actionOnFailure != null)
                 {
                     actionOnFailure();
                 }
-                else if (status == AckStatus.Success)
+                else if (crr_status == AckStatus.Success)
                 {
-                    var ai = HandshakeController.GenerateAdditionalInfo(this);
-                    SendBytes((int)MessageType.AdditionalInfo, ai.PackToBytes());
+                    ResetMessageCounter();
+
+                    SendBytes((int)MessageType.AdditionalInfoRequest, null, (air_status) =>
+                    {
+                        var ai = HandshakeController.GenerateAdditionalInfo(this);
+                        SendBytes((int)MessageType.AdditionalInfo, ai.PackToBytes());
+                    });
                 }
             });
+        }
+
+        public (byte[] key, byte[] IV) GetSecurityKeys()
+        {
+            if (Ses != null)
+            {
+                return (Ses.Aes.Key, Ses.Aes.IV);
+            }
+            return (null, null);
         }
     }
 }

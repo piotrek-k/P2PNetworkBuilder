@@ -157,7 +157,8 @@ namespace NetworkController.UDP
             udpClient.BeginReceive(new AsyncCallback(handleIncomingMessages), null);
         }
 
-        public void ConnectManually(IPEndPoint endpoint)
+        /// <param name="initializeConnection">True begins handshaking. Set to false if you already have security keys</param>
+        public IExternalNode ConnectManually(IPEndPoint endpoint, bool initializeConnection = true, Guid? knownId = null)
         {
             var connTracker = _tracker.NewSession();
 
@@ -176,7 +177,18 @@ namespace NetworkController.UDP
                 _logger.LogDebug("Endpoint already known. Not connecting.");
                 en = foundEndpoint;
             }
-            en.InitializeConnection();
+
+            if(knownId != null)
+            {
+                en.SetId(knownId.Value);
+            }
+
+            if (initializeConnection)
+            {
+                en.InitializeConnection();
+            }
+
+            return en;
         }
 
         public void SendBytes(byte[] data, IPEndPoint destination)
@@ -212,7 +224,7 @@ namespace NetworkController.UDP
 
             if (node != null)
             {
-                if (node.CurrentEndpoint == null)
+                if (node.CurrentEndpoint == null || !node.CurrentEndpoint.Equals(senderIpEndPoint))
                 {
                     node.FillCurrentEndpoint(senderIpEndPoint);
                 }
