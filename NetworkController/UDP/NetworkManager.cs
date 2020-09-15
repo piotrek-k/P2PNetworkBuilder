@@ -178,7 +178,7 @@ namespace NetworkController.UDP
                 en = foundEndpoint;
             }
 
-            if(knownId != null)
+            if (knownId != null)
             {
                 en.SetId(knownId.Value);
             }
@@ -193,7 +193,16 @@ namespace NetworkController.UDP
 
         public void SendBytes(byte[] data, IPEndPoint destination)
         {
-            udpClient.Send(data, data.Length, destination);
+            try
+            {
+                udpClient.Send(data, data.Length, destination);
+            }
+            catch (SocketException e)
+            {
+                // possible "The requested address is not valid in its context"
+
+                _logger.LogError($"Couldn't SendBytes. Destination: {destination}. Reason: {e.Message}");
+            }
         }
 
         private void handleIncomingMessages(IAsyncResult ar)

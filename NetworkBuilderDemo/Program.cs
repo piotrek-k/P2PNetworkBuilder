@@ -35,16 +35,19 @@ namespace NetworkBuilderDemo
                 parsedPort = 13000;
             }
 
-            Guid parsedGuid = Guid.Parse(args[1]);
-
             network.StartListening(parsedPort);
-            network.DeviceId = parsedGuid;
+
+            Guid parsedGuid;
+            if (Guid.TryParse(args[1], out parsedGuid))
+            {
+                network.DeviceId = parsedGuid;
+            }
 
             IPEndPoint parsedIP;
             if (args.Length >= 3 && IPEndPoint.TryParse(args[2], out parsedIP))
             {
                 network.ConnectManually(parsedIP);
-                Console.WriteLine("Connecting...");
+                Console.WriteLine($"Connecting to {parsedIP}...");
             }
 
             network.NetworkChanged += (object sender, EventArgs e) =>
@@ -81,6 +84,17 @@ namespace NetworkBuilderDemo
                         (var key, var IV) = currentNode.GetSecurityKeys();
                         Console.WriteLine(ByteArrayToString(key));
                         Console.WriteLine(ByteArrayToString(IV));
+                    }
+                    else if (currentKey.Key == ConsoleKey.Z)
+                    {
+                        Console.WriteLine("Address:");
+                        var ep = Console.ReadLine();
+                        IPEndPoint newParsedIP;
+                        IExternalNode newNode;
+                        if (IPEndPoint.TryParse(ep, out newParsedIP))
+                        {
+                            newNode = network.ConnectManually(newParsedIP);
+                        }
                     }
                     else if (currentKey.Key == ConsoleKey.C)
                     {

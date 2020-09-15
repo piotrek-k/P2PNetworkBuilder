@@ -572,12 +572,12 @@ namespace NetworkController.UDP
 
         public void FillCurrentEndpoint(IPEndPoint proposedEndpoint)
         {
-            CurrentEndpoint = proposedEndpoint;
-
             if (CurrentEndpoint != null)
             {
-                _logger.LogWarning("Trying to fill currentEndpoint when it's already filled");
+                _logger.LogWarning($"Trying to fill currentEndpoint with {proposedEndpoint} when it's already filled with {CurrentEndpoint}");
             }
+
+            CurrentEndpoint = proposedEndpoint;
         }
 
         public void SetId(Guid newId)
