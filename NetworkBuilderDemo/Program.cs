@@ -55,6 +55,8 @@ namespace NetworkBuilderDemo
                 ListRefresh();
             };
 
+            network.RegisterMessageTypeEnum(typeof(SomeCustomMessageTypes));
+
             new Thread(() =>
             {
                 IExternalNode currentNode = null;

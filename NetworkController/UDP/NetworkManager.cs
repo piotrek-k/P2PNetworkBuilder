@@ -55,7 +55,7 @@ namespace NetworkController.UDP
         {
             if (type.IsEnum)
             {
-                foreach (var v in Enum.GetValues(type))
+                foreach (int v in Enum.GetValues(type).Cast<int>())
                 {
                     foreach (var mt in _messageTypes)
                     {
