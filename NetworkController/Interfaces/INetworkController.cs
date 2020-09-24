@@ -7,10 +7,11 @@ namespace NetworkController.Interfaces
     public interface INetworkController
     {
         void StartListening(int port = 13000);
-        IEnumerable<IExternalNode> GetNodes();
+        List<IExternalNode> GetNodes();
+        List<Guid> Blacklist { get; }
         Guid DeviceId { get; set; }
         IExternalNode ConnectManually(IPEndPoint endpoint, bool initializeConnection = true, Guid? knownId = null);
-        
+
         /// <summary>
         /// Registers enums storing possible message ids
         /// </summary>

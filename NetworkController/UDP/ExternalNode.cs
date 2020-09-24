@@ -640,5 +640,14 @@ namespace NetworkController.UDP
             }
             return (null, null);
         }
+
+        /// <summary>
+        /// May be necessary to destroy object
+        /// </summary>
+        public void ClearEvents()
+        {
+            bytesReceived = null;
+            connectionReset = null;
+        }
     }
 }

@@ -59,5 +59,6 @@ namespace NetworkController.Interfaces
         /// </summary>
         void RestartConnection();
         bool IsHandshakeCompleted { get; }
+        void ClearEvents();
     }
 }

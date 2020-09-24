@@ -97,7 +97,7 @@ namespace NetworkControllerTests.IncomingMessages
                     new SymmetricEncryptionService())
             }.PackToBytes();
 
-            networkControllerMock.Setup(x => x.GetNodes()).Returns(new List<ExternalNode> {
+            networkControllerMock.Setup(x => x.GetNodes()).Returns(new List<IExternalNode> {
                 new ExternalNode(new Guid(), networkControllerMock.Object, logger.Object, nbt.NewSession()),
                 new ExternalNode(new Guid(), networkControllerMock.Object, logger.Object, nbt.NewSession()),
                 new ExternalNode(new Guid(), networkControllerMock.Object, logger.Object, nbt.NewSession())
@@ -122,7 +122,7 @@ namespace NetworkControllerTests.IncomingMessages
             var transmissionManagerMock = new Mock<ITransmissionManager>();
             ExternalNode alreadyKnownNode = new ExternalNode(
                 alreadyKnownGuid, networkControllerMock.Object, logger.Object, nbt.NewSession(), transmissionManagerMock.Object);
-            networkControllerMock.Setup(x => x.GetNodes()).Returns(new List<ExternalNode> {
+            networkControllerMock.Setup(x => x.GetNodes()).Returns(new List<IExternalNode> {
                 alreadyKnownNode
             });
             var incomingAI = new AdditionalInfo
