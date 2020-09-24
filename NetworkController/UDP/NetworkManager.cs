@@ -49,7 +49,26 @@ namespace NetworkController.UDP
 
         public void RegisterMessageTypeEnum(Type type)
         {
-            _messageTypes.Add(type);
+            if (type.IsEnum )
+            {
+                foreach(var v in Enum.GetValues(type))
+                {
+                    foreach(var mt in _messageTypes)
+                    {
+                        if(Enum.IsDefined(mt, v))
+                        {
+                            throw new Exception("Added MessageTypeEnum has value or name that is already defined");
+                        }
+                    }
+                }
+
+                _messageTypes.Add(type);
+            }
+            else
+            {
+                throw new Exception("MessageType should be enumareable");
+            }
+            
         }
 
         public List<Type> GetMessageTypes()
