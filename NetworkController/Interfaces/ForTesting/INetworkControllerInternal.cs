@@ -1,8 +1,9 @@
-﻿using NetworkController.UDP;
+﻿using NetworkController.Persistance;
+using NetworkController.UDP;
 using System;
 using System.Collections.Generic;
 using System.Net;
-using System.Text;
+using static NetworkController.UDP.NetworkManager;
 
 namespace NetworkController.Interfaces.ForTesting
 {
@@ -14,5 +15,7 @@ namespace NetworkController.Interfaces.ForTesting
         int DevicePort { get; }
         ExternalNode AddNode(Guid id);
         void OnNetworkChangedEvent(EventArgs e);
+        void OnNodeFinishedHandshakingEvent(HandshakingFinishedEventArgs e);
+        void RegisterPersistentNodeStorage(IPersistentNodeStorage storage);
     }
 }

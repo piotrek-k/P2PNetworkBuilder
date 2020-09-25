@@ -241,7 +241,12 @@ namespace NetworkController.UDP
             byte[] encryptedPaylaod = null;
             if (payloadOfDataFrame != null)
             {
-                if (type == (int)MessageType.PrivateKey)
+                if (MessageTypeGroups.DoesntRequireEncryption(type))
+                {
+                    encryptedPaylaod = payloadOfDataFrame;
+                    //_logger.LogWarning(new EventId((int)LoggerEventIds.DataUnencrypted), "Data sent unencrypted");
+                }
+                else if (type == (int)MessageType.PrivateKey)
                 {
                     encryptedPaylaod = Aes.Encrypt(payloadOfDataFrame);
                 }
@@ -252,8 +257,8 @@ namespace NetworkController.UDP
                 }
                 else
                 {
-                    encryptedPaylaod = payloadOfDataFrame;
-                    _logger.LogWarning(new EventId((int)LoggerEventIds.DataUnencrypted), "Data sent unencrypted");
+                    _logger.LogError("Message didn't sent. Didn't know what to do at encryption step.");
+                    return;
                 }
             }
 
@@ -399,7 +404,7 @@ namespace NetworkController.UDP
                  * PREVENTING UNFORSEEN BEHAVIOUR
                  */
 
-                if(dataFrame.MessageType == (int)MessageType.PublicKey && Ses != null)
+                if (dataFrame.MessageType == (int)MessageType.PublicKey && Ses != null)
                 {
                     _logger.LogTrace("Omitting retransmitted PublicKey");
                     return;
@@ -424,17 +429,24 @@ namespace NetworkController.UDP
                 byte[] decryptedPayload = null;
                 if (dataFrame.Payload != null)
                 {
-                    if (dataFrame.MessageType == (int)MessageType.PrivateKey)
+                    if (MessageTypeGroups.DoesntRequireEncryption(dataFrame.MessageType))
                     {
-                        decryptedPayload = Aes.Decrypt(dataFrame.Payload);
-                    }
-                    else if (Ses != null)
-                    {
-                        decryptedPayload = Ses.Decrypt(dataFrame.Payload, dataFrame.IV);
+                        decryptedPayload = dataFrame.Payload;
                     }
                     else
                     {
-                        decryptedPayload = dataFrame.Payload;
+                        if (dataFrame.MessageType == (int)MessageType.PrivateKey)
+                        {
+                            decryptedPayload = Aes.Decrypt(dataFrame.Payload);
+                        }
+                        else if (Ses != null)
+                        {
+                            decryptedPayload = Ses.Decrypt(dataFrame.Payload, dataFrame.IV);
+                        }
+                        else
+                        {
+                            decryptedPayload = dataFrame.Payload;
+                        }
                     }
                 }
 
@@ -642,6 +654,7 @@ namespace NetworkController.UDP
             {
                 if (crr_status == AckStatus.Failure && actionOnFailure != null)
                 {
+                    CurrentState = ConnectionState.Failed;
                     actionOnFailure();
                 }
                 else if (crr_status == AckStatus.Success)

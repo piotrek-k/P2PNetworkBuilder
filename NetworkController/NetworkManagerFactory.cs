@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using NetworkController.Debugging;
 using NetworkController.Interfaces;
+using NetworkController.Persistance;
 using NetworkController.UDP;
 using System;
 
@@ -13,6 +14,7 @@ namespace NetworkController
         private NetworkBehaviourTracker _nbt;
         private Func<IExternalNode, bool> _connectionResetRule;
         private Func<Guid, bool> _newUnannouncedConnectionAllowanceRule;
+        private IPersistentNodeStorage _nodeStorage;
 
         public NetworkManagerFactory()
         {
@@ -42,6 +44,13 @@ namespace NetworkController
         public NetworkManagerFactory AddNewUnannouncedConnectionAllowanceRule(Func<Guid, bool> rule)
         {
             _newUnannouncedConnectionAllowanceRule = rule;
+
+            return this;
+        }
+
+        public NetworkManagerFactory AddPersistentNodeStorage(IPersistentNodeStorage storage)
+        {
+            _nodeStorage = storage;
 
             return this;
         }
@@ -77,6 +86,11 @@ namespace NetworkController
             if(_newUnannouncedConnectionAllowanceRule != null)
             {
                 nm.NewUnannouncedConnectionAllowanceRule = _newUnannouncedConnectionAllowanceRule;
+            }
+
+            if(_nodeStorage != null)
+            {
+                nm.RegisterPersistentNodeStorage(_nodeStorage);
             }
 
             return nm;

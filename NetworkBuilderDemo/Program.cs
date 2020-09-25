@@ -1,13 +1,10 @@
 ﻿using NetworkController;
-using NetworkController.DataTransferStructures;
 using NetworkController.Interfaces;
-using NetworkController.Models;
+using NetworkController.Persistance;
 using NetworkController.UDP;
 using System;
 using System.Linq;
 using System.Net;
-using System.Runtime.InteropServices.ComTypes;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -21,6 +18,7 @@ namespace NetworkBuilderDemo
         static async Task Main(string[] args)
         {
             network = new NetworkManagerFactory()
+                .AddPersistentNodeStorage(new PlainTextFileNodeStorage("./keys.txt"))
                 .Create();
 
             foreach (var a in args)
@@ -43,8 +41,10 @@ namespace NetworkBuilderDemo
                 network.DeviceId = parsedGuid;
             }
 
+            network.RestorePreviousSessionFromStorage();
+
             IPEndPoint parsedIP;
-            if (args.Length >= 3 && IPEndPoint.TryParse(args[2], out parsedIP))
+            if (args.Length >= 3 && IPEndPoint.TryParse(args[2], out parsedIP) && network.GetNodes().Count == 0)
             {
                 network.ConnectManually(parsedIP);
                 Console.WriteLine($"Connecting to {parsedIP}...");

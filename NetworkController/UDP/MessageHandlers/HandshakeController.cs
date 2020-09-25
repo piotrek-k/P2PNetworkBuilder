@@ -93,6 +93,10 @@ namespace NetworkController.UDP.MessageHandlers
             source.CurrentState = ExternalNode.ConnectionState.Ready;
             source.IsHandshakeCompleted = true;
             source.ReportThatConnectionIsSetUp();
+            source.NetworkController.OnNodeFinishedHandshakingEvent(new NetworkManager.HandshakingFinishedEventArgs
+            {
+                Node = source
+            });
         }
 
         [IncomingMessage(MessageType.AdditionalInfoRequest)]

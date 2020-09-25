@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net;
+using static NetworkController.UDP.NetworkManager;
 
 namespace NetworkController.Interfaces
 {
@@ -11,6 +12,8 @@ namespace NetworkController.Interfaces
         List<Guid> Blacklist { get; }
         Guid DeviceId { get; set; }
         IExternalNode ConnectManually(IPEndPoint endpoint, bool initializeConnection = true, Guid? knownId = null);
+
+        void RestorePreviousSessionFromStorage();
 
         /// <summary>
         /// Registers enums storing possible message ids
@@ -26,9 +29,14 @@ namespace NetworkController.Interfaces
         /// </summary>
         event EventHandler NetworkChanged;
         /// <summary>
-        /// Event fired when new node appears in network
+        /// Event fired when new node appears in network.
+        /// Happens before handshaking finishes.
         /// </summary>
         event EventHandler NodeAdded;
+        /// <summary>
+        /// Event fired when node finished handshaking (and it's ready for data exchange)
+        /// </summary>
+        event EventHandler<HandshakingFinishedEventArgs> NodeFinishedHandshaking;
 
         /// <summary>
         /// Function that verifies whether to allow connection reset.

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using NetworkController.Interfaces;
 using NetworkController.Interfaces.ForTesting;
 using NetworkController.Models;
+using NetworkController.Persistance;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -49,7 +50,19 @@ namespace NetworkController.UDP
             handler?.Invoke(this, e);
         }
 
+        public event EventHandler<HandshakingFinishedEventArgs> NodeFinishedHandshaking;
+        public class HandshakingFinishedEventArgs : EventArgs
+        {
+            public IExternalNode Node { get; set; }
+        }
+        public virtual void OnNodeFinishedHandshakingEvent(HandshakingFinishedEventArgs e)
+        {
+            EventHandler<HandshakingFinishedEventArgs> handler = NodeFinishedHandshaking;
+            handler?.Invoke(this, e);
+        }
+
         public List<Type> _messageTypes = new List<Type>();
+        private IPersistentNodeStorage _persistentStorage;
 
         public void RegisterMessageTypeEnum(Type type)
         {
@@ -127,6 +140,37 @@ namespace NetworkController.UDP
         {
             DeviceId = enforceId;
             logger.LogInformation($"Device Id set to {DeviceId}");
+        }
+
+        public void RegisterPersistentNodeStorage(IPersistentNodeStorage storage)
+        {
+            storage.LoadOrCreate();
+            NodeFinishedHandshaking += (source, args) =>
+            {
+                storage.AddNewAndSave(args.Node);
+            };
+            _persistentStorage = storage;
+        }
+
+        public void RestorePreviousSessionFromStorage()
+        {
+            if(_persistentStorage == null)
+            {
+                throw new Exception("Storage not registered");
+            }
+
+            foreach(var n in _persistentStorage.Data)
+            {
+                var newNode = ConnectManually(
+                    new IPEndPoint(n.LastIP, n.LastPort),
+                    false,
+                    n.Id);
+
+                newNode.RestoreSecurityKeys(n.Key, () =>
+                {
+                    _logger.LogError("========= KEY FAILURE");
+                });
+            }
         }
 
         public List<IExternalNode> GetNodes()
