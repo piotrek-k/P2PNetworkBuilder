@@ -93,7 +93,7 @@ namespace NetworkController.Persistance
                         {
                             retry = true;
                             _logger.LogError($"Couldn't save keys. {e.Message}. Retrying...");
-                            Thread.Sleep(500);
+                            Thread.Sleep(2000);
                         }
                         else
                         {

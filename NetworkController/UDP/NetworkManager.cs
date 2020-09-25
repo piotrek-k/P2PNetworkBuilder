@@ -169,6 +169,9 @@ namespace NetworkController.UDP
                 newNode.RestoreSecurityKeys(n.Key, () =>
                 {
                     _logger.LogError("========= KEY FAILURE");
+
+                    _persistentStorage.Data.Remove(n);
+                    _persistentStorage.Save();
                 });
             }
         }

@@ -79,7 +79,14 @@ namespace NetworkBuilderDemo
                     }
                     else if (currentKey.Key == ConsoleKey.R)
                     {
-                        currentNode.RestartConnection();
+                        if (currentNode == null)
+                        {
+                            Console.WriteLine("Current node is null");
+                        }
+                        else
+                        {
+                            currentNode.RestartConnection();
+                        }
                     }
                     else if (currentKey.Key == ConsoleKey.G)
                     {

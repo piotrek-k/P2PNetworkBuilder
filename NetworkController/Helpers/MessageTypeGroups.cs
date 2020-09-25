@@ -19,7 +19,8 @@ namespace NetworkController.Helpers
             return messageType == (int)MessageType.PublicKey ||
                 messageType == (int)MessageType.Ping ||
                 messageType == (int)MessageType.PingResponse ||
-                messageType == (int)MessageType.ReceiveAcknowledge;
+                messageType == (int)MessageType.ReceiveAcknowledge ||
+                messageType == (int)MessageType.ResetRequest;
         }
 
         public static bool IsKeepaliveNoLogicRelatedMessage(int messageType)
