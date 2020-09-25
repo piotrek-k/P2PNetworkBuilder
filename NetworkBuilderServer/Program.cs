@@ -28,7 +28,7 @@ namespace NetworkBuilderServer
             INetworkController network = new NetworkManagerFactory()
                 .AddConnectionResetRule((externalNode) =>
                 {
-                    return true;
+                    return false;
                 })
                 .AddNewUnannouncedConnectionAllowanceRule((guid) =>
                 {

@@ -358,6 +358,10 @@ namespace NetworkController.UDP
 
                 RestoreIfFailed();
 
+                /**
+                 * RESETTING
+                 */
+
                 if (dataFrame.MessageType == (int)MessageType.PublicKey && ConnectionResetExpirationTime != null &&
                     ConnectionResetExpirationTime > DateTimeOffset.UtcNow)
                 {
@@ -391,6 +395,16 @@ namespace NetworkController.UDP
                     }
                 }
 
+                /**
+                 * PREVENTING UNFORSEEN BEHAVIOUR
+                 */
+
+                if(dataFrame.MessageType == (int)MessageType.PublicKey && Ses != null)
+                {
+                    _logger.LogTrace("Omitting retransmitted PublicKey");
+                    return;
+                }
+
                 if (MessageTypeGroups.IsHandshakeRelatedAndShouldntBeDoneMoreThanOnce(dataFrame.MessageType) &&
                     IsHandshakeCompleted)
                 {
@@ -402,6 +416,10 @@ namespace NetworkController.UDP
                 {
                     throw new Exception("Received message that cannot be handled at the moment");
                 }
+
+                /**
+                 * DECRYPTING
+                 */
 
                 byte[] decryptedPayload = null;
                 if (dataFrame.Payload != null)
@@ -419,6 +437,10 @@ namespace NetworkController.UDP
                         decryptedPayload = dataFrame.Payload;
                     }
                 }
+
+                /**
+                 * RESETTING COUNTER
+                 */
 
                 if (dataFrame.MessageType == (int)MessageType.ConnectionRestoreRequest)
                 {
