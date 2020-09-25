@@ -237,6 +237,7 @@ namespace NetworkController.UDP
         private void SendBytes(int type, byte[] payloadOfDataFrame, IPEndPoint endpoint, bool ensureDelivered,
             uint retransmissionId, Action<AckStatus> callback = null)
         {
+            byte[] generatedSesIV = null;
             byte[] encryptedPaylaod = null;
             if (payloadOfDataFrame != null)
             {
@@ -246,7 +247,8 @@ namespace NetworkController.UDP
                 }
                 else if (Ses != null)
                 {
-                    encryptedPaylaod = Ses.Encrypt(payloadOfDataFrame);
+                    generatedSesIV = Ses.GetIV();
+                    encryptedPaylaod = Ses.Encrypt(payloadOfDataFrame, generatedSesIV);
                 }
                 else
                 {
@@ -269,7 +271,8 @@ namespace NetworkController.UDP
                 Payload = encryptedPaylaod,
                 SourceNodeId = NetworkController.DeviceId,
                 ExpectAcknowledge = ensureDelivered,
-                RetransmissionId = retransmissionId
+                RetransmissionId = retransmissionId,
+                IV = generatedSesIV
             };
 
             if (ensureDelivered)
@@ -409,7 +412,7 @@ namespace NetworkController.UDP
                     }
                     else if (Ses != null)
                     {
-                        decryptedPayload = Ses.Decrypt(dataFrame.Payload);
+                        decryptedPayload = Ses.Decrypt(dataFrame.Payload, dataFrame.IV);
                     }
                     else
                     {
@@ -605,9 +608,9 @@ namespace NetworkController.UDP
             _highestReceivedSendingId = 0;
         }
 
-        public void RestoreSecurityKeys(byte[] key, byte[] IV, Action actionOnFailure = null)
+        public void RestoreSecurityKeys(byte[] key, Action actionOnFailure = null)
         {
-            Ses = new SymmetricEncryptionService(key, IV);
+            Ses = new SymmetricEncryptionService(key);
             CurrentState = ConnectionState.Building;
 
             SendBytes((int)MessageType.ConnectionRestoreRequest, new ConnectionRestoreRequest()
@@ -632,13 +635,13 @@ namespace NetworkController.UDP
             });
         }
 
-        public (byte[] key, byte[] IV) GetSecurityKeys()
+        public byte[] GetSecurityKeys()
         {
             if (Ses != null)
             {
-                return (Ses.Aes.Key, Ses.Aes.IV);
+                return Ses.Aes.Key;
             }
-            return (null, null);
+            return null;
         }
 
         /// <summary>

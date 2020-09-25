@@ -25,5 +25,10 @@ namespace NetworkController
         /// Data sent in frame
         /// </summary>
         public byte[] Payload { get; set; }
+
+        /// <summary>
+        /// Initialization vector for encryption
+        /// </summary>
+        public byte[] IV { get; set; }
     }
 }

@@ -31,8 +31,10 @@ namespace NetworkControllerTests
             byte[] newUnencryptedBytes = new byte[16];
             unencryptedBytes.CopyTo(newUnencryptedBytes, 0); // size of array must be power of 2
 
-            byte[] encryptedBytes = ses.Encrypt(newUnencryptedBytes);
-            byte[] decryptedBytes = ses2.Decrypt(encryptedBytes);
+            var iv = ses.GetIV();
+
+            byte[] encryptedBytes = ses.Encrypt(newUnencryptedBytes, iv);
+            byte[] decryptedBytes = ses2.Decrypt(encryptedBytes, iv);
 
             Assert.Equal(newUnencryptedBytes, decryptedBytes);
         }

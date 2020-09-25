@@ -83,9 +83,8 @@ namespace NetworkBuilderDemo
                     }
                     else if (currentKey.Key == ConsoleKey.G)
                     {
-                        (var key, var IV) = currentNode.GetSecurityKeys();
+                        var key = currentNode.GetSecurityKeys();
                         Console.WriteLine(ByteArrayToString(key));
-                        Console.WriteLine(ByteArrayToString(IV));
                     }
                     else if (currentKey.Key == ConsoleKey.Z)
                     {
@@ -104,16 +103,13 @@ namespace NetworkBuilderDemo
                         var ep = Console.ReadLine();
                         Console.WriteLine("Key:");
                         var keyStr = Console.ReadLine();
-                        Console.WriteLine("IV:");
-                        var ivStr = Console.ReadLine();
                         Console.WriteLine("ID:");
                         var id = Guid.Parse(Console.ReadLine());
 
                         byte[] key = StringToByteArray(keyStr);
-                        byte[] iv = StringToByteArray(ivStr);
                         bool manualKeyRestoring = true;
 
-                        if (key.Count() == 0 || iv.Count() == 0)
+                        if (key.Count() == 0)
                         {
                             manualKeyRestoring = false;
                         }
@@ -126,7 +122,7 @@ namespace NetworkBuilderDemo
                             newNode = network.ConnectManually(newParsedIP, !manualKeyRestoring, id);
                             if (manualKeyRestoring)
                             {
-                                newNode.RestoreSecurityKeys(key, iv, () =>
+                                newNode.RestoreSecurityKeys(key, () =>
                                 {
                                     Console.WriteLine("========= KEY FAILURE");
                                 });

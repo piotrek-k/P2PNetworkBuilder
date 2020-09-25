@@ -5,7 +5,7 @@ using System.Security.Cryptography;
 
 namespace NetworkController.Encryption
 {
-    public class SymmetricEncryptionService : IEncryptionService
+    public class SymmetricEncryptionService
     {
         public Aes Aes { get; private set; }
 
@@ -15,13 +15,12 @@ namespace NetworkController.Encryption
             Aes.Padding = PaddingMode.Zeros;
         }
 
-        public SymmetricEncryptionService(byte[] key, byte[] IV) : this()
+        public SymmetricEncryptionService(byte[] key) : this()
         {
             Aes.Key = key;
-            Aes.IV = IV;
         }
 
-        public SymmetricEncryptionService(AesKeyContainer aesKeyContainer) : this(aesKeyContainer.Key, aesKeyContainer.IV) { }
+        public SymmetricEncryptionService(AesKeyContainer aesKeyContainer) : this(aesKeyContainer.Key) { }
 
         [Serializable]
         public class AesKeyContainer
@@ -30,7 +29,6 @@ namespace NetworkController.Encryption
             {
                 Aes aes = ses.Aes;
                 Key = aes.Key;
-                IV = aes.IV;
             }
 
             public AesKeyContainer()
@@ -39,7 +37,6 @@ namespace NetworkController.Encryption
             }
 
             public byte[] Key { get; set; }
-            public byte[] IV { get; set; }
         }
 
         public AesKeyContainer ExportKeys()
@@ -47,13 +44,19 @@ namespace NetworkController.Encryption
             return new AesKeyContainer(this);
         }
 
-        public byte[] Encrypt(byte[] data)
+        public byte[] GetIV()
+        {
+            Aes.GenerateIV();
+            return Aes.IV;
+        }
+
+        public byte[] Encrypt(byte[] data, byte[] IV)
         {
             if (data == null)
                 return null;
 
             // Create an encryptor to perform the stream transform.
-            ICryptoTransform encryptor = Aes.CreateEncryptor(Aes.Key, Aes.IV);
+            ICryptoTransform encryptor = Aes.CreateEncryptor(Aes.Key, IV);
 
             // Create the streams used for encryption.
             using (MemoryStream msEncrypt = new MemoryStream())
@@ -68,10 +71,10 @@ namespace NetworkController.Encryption
             }
         }
 
-        public byte[] Decrypt(byte[] data)
+        public byte[] Decrypt(byte[] data, byte[] IV)
         {
             // Create a decryptor to perform the stream transform.
-            ICryptoTransform decryptor = Aes.CreateDecryptor(Aes.Key, Aes.IV);
+            ICryptoTransform decryptor = Aes.CreateDecryptor(Aes.Key, IV);
 
             // Create the streams used for decryption.
             using (MemoryStream msDecrypt = new MemoryStream(data))
