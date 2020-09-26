@@ -274,7 +274,7 @@ namespace NetworkController.UDP
             {
                 MessageType = type,
                 Payload = encryptedPaylaod,
-                SourceNodeId = NetworkController.DeviceId,
+                SourceNodeIdGuid = NetworkController.DeviceId,
                 ExpectAcknowledge = ensureDelivered,
                 RetransmissionId = retransmissionId,
                 IV = generatedSesIV

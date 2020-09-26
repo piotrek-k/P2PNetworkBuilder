@@ -281,14 +281,14 @@ namespace NetworkController.UDP
             var receivedData = udpClient.EndReceive(ar, ref senderIpEndPoint);
             DataFrame df = DataFrame.Unpack(receivedData);
 
-            if (Blacklist.Contains(df.SourceNodeId))
+            if (Blacklist.Contains(df.SourceNodeIdGuid))
             {
                 _logger.LogInformation("Rejected message from blacklisted device");
             }
             else
             {
 
-                var node = _knownNodes.FirstOrDefault(x => x.Id == df.SourceNodeId);
+                var node = _knownNodes.FirstOrDefault(x => x.Id == df.SourceNodeIdGuid);
 
                 if (node == null)
                 {
@@ -298,13 +298,13 @@ namespace NetworkController.UDP
 
                     if (node != null)
                     {
-                        node.SetId(df.SourceNodeId);
+                        node.SetId(df.SourceNodeIdGuid);
                     }
                 }
 
-                if (node == null && NewUnannouncedConnectionAllowanceRule(df.SourceNodeId))
+                if (node == null && NewUnannouncedConnectionAllowanceRule(df.SourceNodeIdGuid))
                 {
-                    node = AddNode(df.SourceNodeId);
+                    node = AddNode(df.SourceNodeIdGuid);
                     node.PublicEndpoint = senderIpEndPoint;
                 }
 

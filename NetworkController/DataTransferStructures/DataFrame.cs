@@ -1,8 +1,6 @@
 ﻿using NetworkController.DataTransferStructures;
-using NetworkController.Models;
+using NetworkController.DataTransferStructures.Packers;
 using System;
-using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
 
 namespace NetworkController
 {
@@ -10,25 +8,47 @@ namespace NetworkController
     /// Outer frame, sent over internet
     /// </summary>
     [Serializable]
-    public class DataFrame : ConvertableToBytes<DataFrame>
+    public class DataFrame : ConvertableToFixedByteStruct<DataFrame>
     {
         /// <summary>
         /// Id of sender of this frame
         /// </summary>
-        public Guid SourceNodeId { get; set; }
+        [ValueToPack(1)]
+        [FixedSize(16)]
+        public byte[] SourceNodeId { get; set; }
 
+        public Guid SourceNodeIdGuid
+        {
+            get
+            {
+                return new Guid(SourceNodeId);
+            }
+            set {
+                SourceNodeId = value.ToByteArray();
+            }
+        }
+
+        [ValueToPack(2)]
+        [FixedSize(4)]
         public int MessageType { get; set; }
+        [ValueToPack(3)]
+        [FixedSize(4)]
         public uint RetransmissionId { get; set; }
+        [ValueToPack(4)]
+        [FixedSize(1)]
         public bool ExpectAcknowledge { get; set; }
 
         /// <summary>
         /// Data sent in frame
         /// </summary>
+        [ValueToPack(6)]
         public byte[] Payload { get; set; }
 
         /// <summary>
         /// Initialization vector for encryption
         /// </summary>
+        [ValueToPack(5)]
+        [FixedSize(16)]
         public byte[] IV { get; set; }
     }
 }
