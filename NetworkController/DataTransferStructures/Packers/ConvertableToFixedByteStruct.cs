@@ -36,7 +36,7 @@ namespace NetworkController.DataTransferStructures
                 }
             }
 
-            if(unspBlocks > 1)
+            if (unspBlocks > 1)
             {
                 throw new Exception("Too many properties with unspecified size");
             }
@@ -70,9 +70,9 @@ namespace NetworkController.DataTransferStructures
                         valueAsBytes = BitConverter.GetBytes(castedValue);
                     }
 
-                    if(valueAsBytes == null)
+                    if (valueAsBytes == null)
                     {
-                        valueAsBytes = new byte[0];
+                        valueAsBytes = new byte[fixedSize != null ? fixedSize.SizeInBytes : 0];
                     }
 
                     if (fixedSize != null && valueAsBytes.Length != fixedSize.SizeInBytes)
@@ -105,7 +105,8 @@ namespace NetworkController.DataTransferStructures
             {
                 prop = p,
                 valToPack = p.GetCustomAttribute<ValueToPackAttribute>(),
-                fixedSize = p.GetCustomAttribute<FixedSizeAttribute>()
+                fixedSize = p.GetCustomAttribute<FixedSizeAttribute>(),
+                zerosLikeNullAttr = p.GetCustomAttribute<TreatZerosLikeNullAttribute>()
             }).Where(x => x.valToPack != null).OrderBy(x => x.valToPack.PlaceInSequence);
 
             int startIndex = 0;
@@ -140,15 +141,30 @@ namespace NetworkController.DataTransferStructures
                 {
                     if (o.fixedSize == null)
                     {
-                        o.prop.SetValue(
-                           result,
-                           encodedData.Skip(startIndex).ToArray());
+                        byte[] nonfixedArray = encodedData.Skip(startIndex).ToArray();
+                        if (o.zerosLikeNullAttr != null && nonfixedArray.Length == 0 || nonfixedArray.All(x => x == 0))
+                        {
+                            o.prop.SetValue(result, null);
+                        }
+                        else
+                        {
+                            o.prop.SetValue(
+                               result,
+                               nonfixedArray);
+                        }
                     }
                     else
                     {
-                        o.prop.SetValue(
-                            result,
-                            encodedData.Skip(startIndex).Take(o.fixedSize.SizeInBytes).ToArray());
+                        if (o.zerosLikeNullAttr != null && encodedData.Skip(startIndex).Take(o.fixedSize.SizeInBytes).SequenceEqual(new byte[16]))
+                        {
+                            o.prop.SetValue(result, null);
+                        }
+                        else
+                        {
+                            o.prop.SetValue(
+                                result,
+                                encodedData.Skip(startIndex).Take(o.fixedSize.SizeInBytes).ToArray());
+                        }
                     }
                 }
                 else

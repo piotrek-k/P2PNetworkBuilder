@@ -23,7 +23,8 @@ namespace NetworkController
             {
                 return new Guid(SourceNodeId);
             }
-            set {
+            set
+            {
                 SourceNodeId = value.ToByteArray();
             }
         }
@@ -49,6 +50,7 @@ namespace NetworkController
         /// </summary>
         [ValueToPack(5)]
         [FixedSize(16)]
+        [TreatZerosLikeNull]
         public byte[] IV { get; set; }
     }
 }

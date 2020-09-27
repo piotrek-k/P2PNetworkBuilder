@@ -36,6 +36,31 @@ namespace NetworkControllerTests
         }
 
         [Fact]
+        public void Should_Remain_Same_After_Packing_And_Unpacking_With_Null_Values()
+        {
+            // Arrange
+            DataFrame df = new DataFrame();
+            df.SourceNodeIdGuid = new Guid();
+            df.Payload = null;
+            df.ExpectAcknowledge = true;
+            df.MessageType = 15;
+            df.IV = null;
+            df.RetransmissionId = 50;
+
+            // Act
+            byte[] bytesToTransmit = df.PackToBytes();
+            DataFrame receivedFrame = DataFrame.Unpack(bytesToTransmit);
+
+            // Assert
+            Assert.Equal(df.SourceNodeIdGuid, receivedFrame.SourceNodeIdGuid);
+            Assert.Equal(df.Payload, receivedFrame.Payload);
+            Assert.Equal(df.MessageType, receivedFrame.MessageType);
+            Assert.Equal(df.ExpectAcknowledge, receivedFrame.ExpectAcknowledge);
+            Assert.Equal(df.IV, receivedFrame.IV);
+            Assert.Equal(df.RetransmissionId, receivedFrame.RetransmissionId);
+        }
+
+        [Fact]
         public void Should_Have_Proper_Attributes()
         {
             List<PropertyInfo> properties = typeof(DataFrame).GetProperties(BindingFlags.Public | BindingFlags.Instance).ToList();
