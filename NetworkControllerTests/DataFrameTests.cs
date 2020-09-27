@@ -62,5 +62,25 @@ namespace NetworkControllerTests
                 }
             }
         }
+
+        [Fact]
+        public void Size_Estimator_Should_Return_Overall_Size_Minus_Payload()
+        {
+            // Arrange
+            DataFrame df = new DataFrame();
+            df.SourceNodeIdGuid = new Guid();
+            df.Payload = new byte[] { 1, 2, 3 };
+            df.ExpectAcknowledge = true;
+            df.MessageType = 15;
+            df.IV = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+            df.RetransmissionId = 50;
+
+            // Act
+            int estimatedSize = DataFrame.EstimateSize();
+            int realDataFrameSize = df.PackToBytes().Length;
+
+            // Assert
+            Assert.True(estimatedSize == realDataFrameSize - df.Payload.Length);
+        }
     }
 }

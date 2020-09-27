@@ -20,7 +20,7 @@ namespace NetworkController.UDP.MessageHandlers
         {
             return new AdditionalInfo()
             {
-                KnownNodes = source.NetworkController.GetNodes()
+                KnownNodes = source.NetworkController.GetNodes()?
                     .Where(x => x.CurrentState == ExternalNode.ConnectionState.Ready).Select(x => x.Id).ToList(),
                 ClaimedPrivateIPv4 = source.NetworkController.DeviceIPAddress.MapToIPv4().ToString(),
                 ClaimedPrivatePort = source.NetworkController.DevicePort
@@ -72,21 +72,24 @@ namespace NetworkController.UDP.MessageHandlers
 
             source.ClaimedPrivateEndpoint = new IPEndPoint(IPAddress.Parse(data.ClaimedPrivateIPv4), data.ClaimedPrivatePort);
 
-            foreach (var incomingNodeId in data.KnownNodes)
+            if (data.KnownNodes != null)
             {
-                if (incomingNodeId == source.NetworkController.DeviceId)
+                foreach (var incomingNodeId in data.KnownNodes)
                 {
-                    continue;
-                }
-
-                var foundNode = source.NetworkController.GetNodes().FirstOrDefault(x => x.Id == incomingNodeId);
-
-                if (foundNode == null)
-                {
-                    source.SendBytes((int)MessageType.HolePunchingRequest, new HolePunchingRequest()
+                    if (incomingNodeId == source.NetworkController.DeviceId)
                     {
-                        RequestedDeviceId = incomingNodeId
-                    }.PackToBytes());
+                        continue;
+                    }
+
+                    var foundNode = source.NetworkController.GetNodes().FirstOrDefault(x => x.Id == incomingNodeId);
+
+                    if (foundNode == null)
+                    {
+                        source.SendBytes((int)MessageType.HolePunchingRequest, new HolePunchingRequest()
+                        {
+                            RequestedDeviceId = incomingNodeId
+                        }.PackToBytes());
+                    }
                 }
             }
 

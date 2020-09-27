@@ -48,9 +48,9 @@ namespace NetworkControllerTests.IncomingMessages
 
             // Extracting sent data
             externalNodeMock.Setup(x => x.SendBytes(It.IsAny<int>(), It.IsAny<byte[]>(), It.IsAny<Action<AckStatus>>()))
-               .Callback<int, byte[], Action>((mt, bytes, c) => responseToExternalNode = HolePunchingResponse.Unpack(bytes));
+               .Callback<int, byte[], Action<AckStatus>>((mt, bytes, c) => responseToExternalNode = HolePunchingResponse.Unpack(bytes));
             targetNodeMock.Setup(x => x.SendBytes(It.IsAny<int>(), It.IsAny<byte[]>(), It.IsAny<Action<AckStatus>>()))
-               .Callback<int, byte[], Action>((mt, bytes, c) => responseToTargetNode = HolePunchingResponse.Unpack(bytes));
+               .Callback<int, byte[], Action<AckStatus>>((mt, bytes, c) => responseToTargetNode = HolePunchingResponse.Unpack(bytes));
         }
 
         [Fact]

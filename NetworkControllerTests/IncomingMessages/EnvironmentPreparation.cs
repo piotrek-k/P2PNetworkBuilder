@@ -20,12 +20,12 @@ namespace NetworkControllerTests.IncomingMessages
             ExternalNode nodeOne, ExternalNode nodeTwo)
         {
             transmissionManagerMockOne.Setup(x => x.SendFrameEnsureDelivered(It.IsAny<DataFrame>(), It.IsAny<IPEndPoint>(), It.IsAny<Action<AckStatus>>()))
-              .Callback<DataFrame, IPEndPoint, Action>((df, ep, c) => nodeTwo.HandleIncomingBytes(df));
+              .Callback<DataFrame, IPEndPoint, Action<AckStatus>>((df, ep, c) => nodeTwo.HandleIncomingBytes(df));
             transmissionManagerMockOne.Setup(x => x.SendFrameAndForget(It.IsAny<DataFrame>(), It.IsAny<IPEndPoint>()))
               .Callback<DataFrame, IPEndPoint>((df, ep) => nodeTwo.HandleIncomingBytes(df));
 
             transmissionManagerMockTwo.Setup(x => x.SendFrameEnsureDelivered(It.IsAny<DataFrame>(), It.IsAny<IPEndPoint>(), It.IsAny<Action<AckStatus>>()))
-              .Callback<DataFrame, IPEndPoint, Action>((df, ep, c) => nodeOne.HandleIncomingBytes(df));
+              .Callback<DataFrame, IPEndPoint, Action<AckStatus>>((df, ep, c) => nodeOne.HandleIncomingBytes(df));
             transmissionManagerMockTwo.Setup(x => x.SendFrameAndForget(It.IsAny<DataFrame>(), It.IsAny<IPEndPoint>()))
               .Callback<DataFrame, IPEndPoint>((df, ep) => nodeOne.HandleIncomingBytes(df));
 

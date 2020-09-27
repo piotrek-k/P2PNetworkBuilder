@@ -10,9 +10,9 @@ namespace NetworkController.DataTransferStructures
     [Serializable]
     public abstract class ConvertableToFixedByteStruct<T> where T : new()
     {
-        public static (int size, int unspecifiedBlocks) EstimateSize()
+        public static int EstimateSize()
         {
-            PropertyInfo[] properties = typeof(T).GetProperties(BindingFlags.Public);
+            PropertyInfo[] properties = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
             int overallSize = 0;
             int unspBlocks = 0;
@@ -36,7 +36,12 @@ namespace NetworkController.DataTransferStructures
                 }
             }
 
-            return (overallSize, unspBlocks);
+            if(unspBlocks > 1)
+            {
+                throw new Exception("Too many properties with unspecified size");
+            }
+
+            return overallSize;
         }
 
         public byte[] PackToBytes()
@@ -84,11 +89,6 @@ namespace NetworkController.DataTransferStructures
             }
 
             return result;
-        }
-
-        private static U CastInto<U>(object obj)
-        {
-            return (U)obj;
         }
 
         public static T Unpack(byte[] encodedData)

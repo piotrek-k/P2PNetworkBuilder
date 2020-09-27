@@ -25,7 +25,7 @@ namespace NetworkControllerTests.Helper
         {
             return x => x.Log(
                 It.Is<LogLevel>(l => l == level),
-                It.IsAny<EventId>(),
+                It.Is<EventId>(ei => ei == eventId),
                 It.Is<It.IsAnyType>((v, t) => true),
                 It.IsAny<Exception>(),
                 It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true));

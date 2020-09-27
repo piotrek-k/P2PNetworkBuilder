@@ -34,19 +34,26 @@ namespace NetworkControllerTests.IncomingMessages
             logger = new Mock<ILogger<HandshakingControllerTest>>();
             logger2 = new Mock<ILogger<HandshakingControllerTest>>();
 
+            nbt = new NetworkBehaviourTracker();
+
             networkControllerMock = new Mock<INetworkControllerInternal>();
             networkControllerMock.SetupAllProperties();
             networkControllerMock.Setup(x => x.DevicePort).Returns(13000);
             networkControllerMock.Setup(x => x.DeviceIPAddress).Returns(IPAddress.Parse("192.168.1.1"));
             networkControllerMock.Setup(x => x.GetMessageTypes()).Returns(new List<Type>() { typeof(NetworkController.Models.MessageType) });
+            var nodes = new List<IExternalNode> {
+                new ExternalNode(new Guid(), networkControllerMock.Object, logger.Object, nbt.NewSession()),
+                new ExternalNode(new Guid(), networkControllerMock.Object, logger.Object, nbt.NewSession()),
+                new ExternalNode(new Guid(), networkControllerMock.Object, logger.Object, nbt.NewSession())
+            };
+            nodes.ForEach(x => ((ExternalNode)x).CurrentState = ExternalNode.ConnectionState.Ready);
+            networkControllerMock.Setup(x => x.GetNodes()).Returns(nodes);
 
             externalNodeMock = new Mock<IExternalNodeInternal>();
             externalNodeMock.SetupAllProperties();
             externalNodeMock.Setup(x => x.NetworkController).Returns(networkControllerMock.Object);
 
             handshakeControllerMock = new HandshakeController(logger.Object);
-
-            nbt = new NetworkBehaviourTracker();
         }
 
         [Fact]
@@ -58,6 +65,10 @@ namespace NetworkControllerTests.IncomingMessages
             {
                 RsaParams = aes.PublicKey
             }.PackToBytes();
+            networkControllerMock.Setup(x => x.GetNodes()).Returns(new List<IExternalNode>()
+            {
+                 new ExternalNode(new Guid(), networkControllerMock.Object, logger.Object, nbt.NewSession())
+            });
 
             // Act
             handshakeControllerMock.IncomingPublicKey(externalNodeMock.Object, incomingKey);
@@ -77,6 +88,10 @@ namespace NetworkControllerTests.IncomingMessages
                 AesKey = new SymmetricEncryptionService.AesKeyContainer(
                     new SymmetricEncryptionService())
             }.PackToBytes();
+            networkControllerMock.Setup(x => x.GetNodes()).Returns(new List<IExternalNode>()
+            {
+                 new ExternalNode(new Guid(), networkControllerMock.Object, logger.Object, nbt.NewSession())
+            });
 
             // Act
             handshakeControllerMock.IncomingPrivateKey(externalNodeMock.Object, incomingKey);
@@ -97,21 +112,24 @@ namespace NetworkControllerTests.IncomingMessages
                     new SymmetricEncryptionService())
             }.PackToBytes();
 
-            networkControllerMock.Setup(x => x.GetNodes()).Returns(new List<IExternalNode> {
+            var nodes = new List<IExternalNode> {
                 new ExternalNode(new Guid(), networkControllerMock.Object, logger.Object, nbt.NewSession()),
                 new ExternalNode(new Guid(), networkControllerMock.Object, logger.Object, nbt.NewSession()),
                 new ExternalNode(new Guid(), networkControllerMock.Object, logger.Object, nbt.NewSession())
-            });
+            };
+            nodes.ForEach(x => ((ExternalNode)x).CurrentState = ExternalNode.ConnectionState.Ready);
+
+            networkControllerMock.Setup(x => x.GetNodes()).Returns(nodes);
 
             AdditionalInfo responseBeingSent = null;
             externalNodeMock.Setup(x => x.SendBytes(It.IsAny<int>(), It.IsAny<byte[]>(), It.IsAny<Action<AckStatus>>()))
-               .Callback<int, byte[], Action>((mt, bytes, c) => responseBeingSent = AdditionalInfo.Unpack(bytes));
+               .Callback<int, byte[], Action<AckStatus>>((mt, bytes, c) => responseBeingSent = AdditionalInfo.Unpack(bytes));
 
             // Act
             handshakeControllerMock.IncomingPrivateKey(externalNodeMock.Object, incomingKey);
 
             // Assert
-            Assert.True(responseBeingSent.KnownNodes.Count() == 3);
+            Assert.Equal(3, responseBeingSent.KnownNodes.Count());
         }
 
         [Fact]
@@ -122,6 +140,7 @@ namespace NetworkControllerTests.IncomingMessages
             var transmissionManagerMock = new Mock<ITransmissionManager>();
             ExternalNode alreadyKnownNode = new ExternalNode(
                 alreadyKnownGuid, networkControllerMock.Object, logger.Object, nbt.NewSession(), transmissionManagerMock.Object);
+            alreadyKnownNode.RestoreSecurityKeys(new byte[16]);
             networkControllerMock.Setup(x => x.GetNodes()).Returns(new List<IExternalNode> {
                 alreadyKnownNode
             });
@@ -183,8 +202,8 @@ namespace NetworkControllerTests.IncomingMessages
             Assert.Equal(ExternalNode.ConnectionState.Ready, nodeOne.CurrentState);
             Assert.Equal(ExternalNode.ConnectionState.Ready, nodeTwo.CurrentState);
 
-            logger.Verify(LogLevel.Warning, LoggerEventIds.DataUnencrypted, Times.Once());
-            logger2.Verify(LogLevel.Warning, LoggerEventIds.DataUnencrypted, Times.Never());
+            logger.Verify(LogLevel.Trace, LoggerEventIds.DataUnencrypted, Times.Exactly(3));
+            logger2.Verify(LogLevel.Trace, LoggerEventIds.DataUnencrypted, Times.Exactly(2));
         }
     }
 }

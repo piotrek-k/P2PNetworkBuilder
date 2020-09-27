@@ -244,7 +244,7 @@ namespace NetworkController.UDP
                 if (MessageTypeGroups.DoesntRequireEncryption(type))
                 {
                     encryptedPaylaod = payloadOfDataFrame;
-                    //_logger.LogWarning(new EventId((int)LoggerEventIds.DataUnencrypted), "Data sent unencrypted");
+                    _logger.LogTrace(new EventId((int)LoggerEventIds.DataUnencrypted), "Data sent unencrypted");
                 }
                 else if (type == (int)MessageType.PrivateKey)
                 {

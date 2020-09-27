@@ -6,7 +6,7 @@ namespace NetworkController.Models
 {
     public enum LoggerEventIds : int
     {
-        DataUnencrypted,
-        NodeNotFound
+        DataUnencrypted = 1,
+        NodeNotFound = 2
     }
 }
