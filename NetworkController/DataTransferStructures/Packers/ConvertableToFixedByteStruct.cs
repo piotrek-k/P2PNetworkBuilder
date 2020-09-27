@@ -70,6 +70,11 @@ namespace NetworkController.DataTransferStructures
                         valueAsBytes = BitConverter.GetBytes(castedValue);
                     }
 
+                    if(valueAsBytes == null)
+                    {
+                        valueAsBytes = new byte[0];
+                    }
+
                     if (fixedSize != null && valueAsBytes.Length != fixedSize.SizeInBytes)
                     {
                         throw new Exception("Fixed size doesn't fit actual data");
