@@ -274,7 +274,7 @@ namespace NetworkController.UDP
             {
                 MessageType = type,
                 Payload = encryptedPaylaod,
-                PayloadSize = payloadOfDataFrame.Length,
+                PayloadSize = payloadOfDataFrame != null ? payloadOfDataFrame.Length : 0,
                 SourceNodeIdGuid = NetworkController.DeviceId,
                 ExpectAcknowledge = ensureDelivered,
                 RetransmissionId = retransmissionId,
