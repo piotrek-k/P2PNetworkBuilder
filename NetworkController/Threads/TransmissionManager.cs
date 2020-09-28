@@ -84,7 +84,7 @@ namespace NetworkController.Threads
             {
                 df.RetransmissionId = allSentMessagesCounter;
 
-                if(allSentMessagesCounter != uint.MaxValue)
+                if (allSentMessagesCounter != uint.MaxValue)
                 {
                     allSentMessagesCounter++;
                 }
@@ -92,7 +92,7 @@ namespace NetworkController.Threads
                 {
                     allSentMessagesCounter = 1;
                 }
-                
+
                 var waitingMessage = new WaitingMessage()
                 {
                     DataFrame = df,
@@ -120,16 +120,19 @@ namespace NetworkController.Threads
             {
                 if (df.RetransmissionId == currentSendingId)
                 {
-                    (WaitingMessage wm, Action<AckStatus> callback) = _dataframeQueue.Dequeue();
-                    callback?.Invoke((AckStatus)receivedPayload.Status);
+                    if (_dataframeQueue.Count > 0)
+                    {
+                        (WaitingMessage wm, Action<AckStatus> callback) = _dataframeQueue.Dequeue();
+                        callback?.Invoke((AckStatus)receivedPayload.Status);
 
-                    if (currentSendingId != uint.MaxValue)
-                    {
-                        currentSendingId++;
-                    }
-                    else
-                    {
-                        currentSendingId = 1;
+                        if (currentSendingId != uint.MaxValue)
+                        {
+                            currentSendingId++;
+                        }
+                        else
+                        {
+                            currentSendingId = 1;
+                        }
                     }
 
                     lock (retransmissionSleepLock)
