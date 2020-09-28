@@ -274,6 +274,7 @@ namespace NetworkController.UDP
             {
                 MessageType = type,
                 Payload = encryptedPaylaod,
+                PayloadSize = payloadOfDataFrame.Length,
                 SourceNodeIdGuid = NetworkController.DeviceId,
                 ExpectAcknowledge = ensureDelivered,
                 RetransmissionId = retransmissionId,
@@ -448,6 +449,13 @@ namespace NetworkController.UDP
                             decryptedPayload = dataFrame.Payload;
                         }
                     }
+                }
+
+                if(decryptedPayload != null && decryptedPayload.Length != dataFrame.PayloadSize)
+                {
+                    // encryption algorithms might leave zero paddings which have to be removed
+                    _logger.LogDebug("Payload size correction");
+                    decryptedPayload = decryptedPayload.Take(dataFrame.PayloadSize).ToArray();
                 }
 
                 /**

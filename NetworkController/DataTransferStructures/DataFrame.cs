@@ -32,18 +32,14 @@ namespace NetworkController
         [ValueToPack(2)]
         [FixedSize(4)]
         public int MessageType { get; set; }
+
         [ValueToPack(3)]
         [FixedSize(4)]
         public uint RetransmissionId { get; set; }
+
         [ValueToPack(4)]
         [FixedSize(1)]
         public bool ExpectAcknowledge { get; set; }
-
-        /// <summary>
-        /// Data sent in frame
-        /// </summary>
-        [ValueToPack(6)]
-        public byte[] Payload { get; set; }
 
         /// <summary>
         /// Initialization vector for encryption
@@ -52,5 +48,15 @@ namespace NetworkController
         [FixedSize(16)]
         [TreatZerosLikeNull]
         public byte[] IV { get; set; }
+
+        [ValueToPack(6)]
+        [FixedSize(4)]
+        public int PayloadSize { get; set; }
+
+        /// <summary>
+        /// Data sent in frame
+        /// </summary>
+        [ValueToPack(7)]
+        public byte[] Payload { get; set; }
     }
 }
