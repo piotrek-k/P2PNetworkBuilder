@@ -15,6 +15,7 @@ namespace NetworkController
         private Func<IExternalNode, bool> _connectionResetRule;
         private Func<Guid, bool> _newUnannouncedConnectionAllowanceRule;
         private IPersistentNodeStorage _nodeStorage;
+        private int? _maxPacketSize = null;
 
         public NetworkManagerFactory()
         {
@@ -55,6 +56,13 @@ namespace NetworkController
             return this;
         }
 
+        public NetworkManagerFactory SetMaxPacketSize(int size)
+        {
+            _maxPacketSize = size;
+
+            return this;
+        }
+
         public INetworkController Create(Guid? enforceId = null)
         {
             NetworkManager nm;
@@ -91,6 +99,11 @@ namespace NetworkController
             if(_nodeStorage != null)
             {
                 nm.RegisterPersistentNodeStorage(_nodeStorage);
+            }
+
+            if(_maxPacketSize != null)
+            {
+                nm.MaxPacketSize = _maxPacketSize.Value;
             }
 
             return nm;

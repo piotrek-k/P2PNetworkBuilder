@@ -53,6 +53,6 @@ namespace NetworkController.Interfaces
         /// <summary>
         /// Error will be thrown if any UDP packet sent by this device exceeds that value
         /// </summary>
-        int MaxPacketSize { get; set; }
+        int MaxPacketSize { get; }
     }
 }

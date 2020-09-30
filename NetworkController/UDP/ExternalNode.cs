@@ -293,7 +293,7 @@ namespace NetworkController.UDP
             _tracker.AddNewEvent(new ConnectionEvents(PossibleEvents.OutgoingMessage, GetMessageName(type) + " transm. id: " + data.RetransmissionId));
             if (!MessageTypeGroups.IsKeepaliveNoLogicRelatedMessage(data.MessageType))
             {
-                _logger.LogDebug($"{Id} \t Outgoing: {GetMessageName(data.MessageType) + " transm. id: " + data.RetransmissionId}");
+                _logger.LogDebug($"{Id} \t Outgoing: {GetMessageName(data.MessageType) + " transm. id: " + data.RetransmissionId}, payload {encryptedPaylaod.Length}B ({payloadOfDataFrame.Length}B unenc)");
             }
         }
 
