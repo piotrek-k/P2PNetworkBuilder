@@ -37,6 +37,8 @@ namespace NetworkController.UDP
 
         public event EventHandler NetworkChanged;
 
+        public int MaxPacketSize { get; set; } = 65407;
+
         public virtual void OnNetworkChangedEvent(EventArgs e)
         {
             EventHandler handler = NetworkChanged;
@@ -265,6 +267,11 @@ namespace NetworkController.UDP
         {
             try
             {
+                if(data.Length > MaxPacketSize)
+                {
+                    throw new Exception("Data packet exceeded maximal allowed size");
+                }
+
                 udpClient.Send(data, data.Length, destination);
             }
             catch (SocketException e)

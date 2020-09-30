@@ -49,5 +49,10 @@ namespace NetworkController.Interfaces
         /// announced its existence by itself)
         /// </summary>
         Func<Guid, bool> NewUnannouncedConnectionAllowanceRule { get; set; }
+
+        /// <summary>
+        /// Error will be thrown if any UDP packet sent by this device exceeds that value
+        /// </summary>
+        int MaxPacketSize { get; set; }
     }
 }
