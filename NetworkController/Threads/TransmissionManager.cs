@@ -182,11 +182,13 @@ namespace NetworkController.Threads
                 }
 
                 bool firstTransmission = true;
+                short failsCounter = 0;
                 while (idOfRetransmittedMessage == currentSendingId)
                 {
                     if (!firstTransmission)
                     {
                         _logger.LogDebug($"{_externalNode.Id} Retransmission of {wm.DataFrame.RetransmissionId}");
+                        failsCounter++;
                     }
                     firstTransmission = false;
 
@@ -197,6 +199,13 @@ namespace NetworkController.Threads
                         {
                             _logger.LogDebug($"{_externalNode.Id} Retransmission suspended as state is 'Failed'");
                             Monitor.Wait(retransmissionSleepLock);
+                        }
+                        else if (failsCounter > 5 && _externalNode.CurrentState != UDP.ExternalNode.ConnectionState.Ready)
+                        {
+                            // in case of "Ready" state, retransmission will be shut down by KeepaliveThread
+                            // in other cases, we need to handle it here:
+                            _externalNode.ReportConnectionFailure();
+                            failsCounter = 0;
                         }
                         else
                         {

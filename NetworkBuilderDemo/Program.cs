@@ -17,6 +17,8 @@ namespace NetworkBuilderDemo
 
         static async Task Main(string[] args)
         {
+            // .\NetworkBuilderDemo.exe 13001 9e6f77c3-3b80-4c95-a547-44f96aca0044
+
             network = new NetworkManagerFactory()
                 .AddPersistentNodeStorage(new PlainTextFileNodeStorage("./keys.txt"))
                 .Create();
