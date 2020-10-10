@@ -14,6 +14,23 @@ namespace NetworkController.Helpers
                 messageType == (int)MessageType.AdditionalInfo;
         }
 
+        public static bool CanBeSentWhenConnectionIsNotYetBuilt(int messageType)
+        {
+            switch (messageType)
+            {
+                case (int)MessageType.PublicKey:
+                case (int)MessageType.PrivateKey:
+                case (int)MessageType.AdditionalInfo:
+                case (int)MessageType.Ping:
+                case (int)MessageType.PingResponse:
+                case (int)MessageType.HolePunchingRequest:
+                case (int)MessageType.HolePunchingResponse:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
         public static bool DoesntRequireEncryption(int messageType)
         {
             return messageType == (int)MessageType.PublicKey ||

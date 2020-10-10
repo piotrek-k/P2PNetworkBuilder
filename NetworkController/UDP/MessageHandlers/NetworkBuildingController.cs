@@ -15,33 +15,40 @@ namespace NetworkController.UDP.MessageHandlers
         { }
 
         [IncomingMessage(MessageType.HolePunchingRequest)]
-        public void IncomingHolePunchingRequest(IExternalNodeInternal source, byte[] bytes)
+        public void IncomingHolePunchingRequest(IExternalNodeInternal connectRequester, byte[] bytes)
         {
             HolePunchingRequest holePunchingRequest = HolePunchingRequest.Unpack(bytes);
-            IExternalNodeInternal targetNode = source.NetworkController.GetNodes_Internal().FirstOrDefault(x=>x.Id == holePunchingRequest.RequestedDeviceId);
+            IExternalNodeInternal nodeToWhichSourceWantToConnect = 
+                connectRequester.NetworkController.GetNodes_Internal().FirstOrDefault(x=>x.Id == holePunchingRequest.RequestedDeviceId);
 
-            HolePunchingResponse targetNodeHPR = new HolePunchingResponse
+            if(nodeToWhichSourceWantToConnect == null)
+            {
+                _logger.LogError("HPR: cannot arrange connection. No such node.");
+                return;
+            }
+
+            HolePunchingResponse responseToRequester = new HolePunchingResponse
             {
                 IsMasterNode = true,
                 DeviceId = holePunchingRequest.RequestedDeviceId,
-                IPv4SeenExternally = targetNode.PublicEndpoint?.Address.MapToIPv4().ToString(),
-                PortSeenExternally = targetNode.PublicEndpoint.Port,
-                IPv4SeenInternally = targetNode.ClaimedPrivateEndpoint?.Address.MapToIPv4().ToString(),
-                PortSeenInternally = targetNode.ClaimedPrivateEndpoint.Port
+                IPv4SeenExternally = nodeToWhichSourceWantToConnect.PublicEndpoint?.Address.MapToIPv4().ToString(),
+                PortSeenExternally = nodeToWhichSourceWantToConnect.PublicEndpoint.Port,
+                IPv4SeenInternally = nodeToWhichSourceWantToConnect.ClaimedPrivateEndpoint?.Address.MapToIPv4().ToString(),
+                PortSeenInternally = nodeToWhichSourceWantToConnect.ClaimedPrivateEndpoint.Port
             };
 
-            HolePunchingResponse sourceNodeHPR = new HolePunchingResponse
+            HolePunchingResponse informationToConnectionTarget = new HolePunchingResponse
             {
                 IsMasterNode = false,
-                DeviceId = holePunchingRequest.RequestedDeviceId,
-                IPv4SeenExternally = source.PublicEndpoint.Address.MapToIPv4().ToString(),
-                PortSeenExternally = source.PublicEndpoint.Port,
-                IPv4SeenInternally = source.ClaimedPrivateEndpoint.Address.MapToIPv4().ToString(),
-                PortSeenInternally = source.ClaimedPrivateEndpoint.Port
+                DeviceId = connectRequester.Id,
+                IPv4SeenExternally = connectRequester.PublicEndpoint.Address.MapToIPv4().ToString(),
+                PortSeenExternally = connectRequester.PublicEndpoint.Port,
+                IPv4SeenInternally = connectRequester.ClaimedPrivateEndpoint.Address.MapToIPv4().ToString(),
+                PortSeenInternally = connectRequester.ClaimedPrivateEndpoint.Port
             };
 
-            source.SendBytes((int)MessageType.HolePunchingResponse, targetNodeHPR.PackToBytes());
-            targetNode.SendBytes((int)MessageType.HolePunchingResponse, sourceNodeHPR.PackToBytes());
+            connectRequester.SendBytes((int)MessageType.HolePunchingResponse, responseToRequester.PackToBytes());
+            nodeToWhichSourceWantToConnect.SendBytes((int)MessageType.HolePunchingResponse, informationToConnectionTarget.PackToBytes());
         }
 
         [IncomingMessage(MessageType.HolePunchingResponse)]
@@ -51,7 +58,7 @@ namespace NetworkController.UDP.MessageHandlers
 
             if(data.DeviceId == source.NetworkController.DeviceId)
             {
-                _logger.LogError("Trying to connect to myself");
+                _logger.LogError("(HolePunchingResponse) Trying to connect to myself. Rejecting response.");
                 return;
             }
 
@@ -65,6 +72,8 @@ namespace NetworkController.UDP.MessageHandlers
                 newNode.ClaimedPrivateEndpoint = new IPEndPoint(IPAddress.Parse(data.IPv4SeenInternally), data.PortSeenInternally);
 
                 node = newNode;
+
+                _logger.LogTrace($"(HPR) received info about ${data.DeviceId}: IP1: {newNode.PublicEndpoint}, IP2: {newNode.ClaimedPrivateEndpoint}");
             }
 
             node.CurrentState = ExternalNode.ConnectionState.Building;

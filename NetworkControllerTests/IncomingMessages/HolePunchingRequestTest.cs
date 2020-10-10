@@ -2,6 +2,7 @@
 using Moq;
 using NetworkController.DataTransferStructures;
 using NetworkController.DataTransferStructures.Other;
+using NetworkController.Interfaces;
 using NetworkController.Interfaces.ForTesting;
 using NetworkController.Models;
 using NetworkController.UDP;
@@ -17,7 +18,7 @@ namespace NetworkControllerTests.IncomingMessages
     public class HolePunchingRequestTest
     {
         NetworkBuildingController networkBuildingController;
-        private Mock<IExternalNodeInternal> targetNodeMock;
+        private Mock<IExternalNodeInternal> alreadyKnownNodeMock;
         private Mock<ILogger<NetworkBuildingController>> logger;
         private Mock<IExternalNodeInternal> externalNodeMock;
         private Mock<INetworkControllerInternal> networkControllerMock;
@@ -30,18 +31,16 @@ namespace NetworkControllerTests.IncomingMessages
             externalNodeMock = new Mock<IExternalNodeInternal>();
             networkControllerMock = new Mock<INetworkControllerInternal>();
             networkBuildingController = new NetworkBuildingController(logger.Object);
-            targetNodeMock = new Mock<IExternalNodeInternal>();
+            alreadyKnownNodeMock = new Mock<IExternalNodeInternal>();
 
             // Setting up node 2 (node to which node 1 wants to connect)
-            targetNodeMock = new Mock<IExternalNodeInternal>();
-            networkControllerMock.Setup(x => x.GetNodes_Internal()).Returns(new List<IExternalNodeInternal>()
-            {
-                targetNodeMock.Object
-            });
-            targetNodeMock.Setup(x => x.PublicEndpoint).Returns(IPEndPoint.Parse("7.7.7.7:7777"));
-            targetNodeMock.Setup(x => x.ClaimedPrivateEndpoint).Returns(IPEndPoint.Parse("127.0.0.1:13000"));
+            alreadyKnownNodeMock = new Mock<IExternalNodeInternal>();
+            alreadyKnownNodeMock.Setup(x => x.Id).Returns(Guid.NewGuid());
+            alreadyKnownNodeMock.Setup(x => x.PublicEndpoint).Returns(IPEndPoint.Parse("7.7.7.7:7777"));
+            alreadyKnownNodeMock.Setup(x => x.ClaimedPrivateEndpoint).Returns(IPEndPoint.Parse("127.0.0.1:13000"));
 
             // Setting up node 1 (source of incoming message)
+            externalNodeMock.Setup(x => x.Id).Returns(Guid.NewGuid());
             externalNodeMock.Setup(x => x.NetworkController).Returns(networkControllerMock.Object);
             externalNodeMock.Setup(x => x.PublicEndpoint).Returns(IPEndPoint.Parse("8.8.8.8:8888"));
             externalNodeMock.Setup(x => x.ClaimedPrivateEndpoint).Returns(IPEndPoint.Parse("192.168.1.1:13000"));
@@ -49,15 +48,23 @@ namespace NetworkControllerTests.IncomingMessages
             // Extracting sent data
             externalNodeMock.Setup(x => x.SendBytes(It.IsAny<int>(), It.IsAny<byte[]>(), It.IsAny<Action<AckStatus>>()))
                .Callback<int, byte[], Action<AckStatus>>((mt, bytes, c) => responseToExternalNode = HolePunchingResponse.Unpack(bytes));
-            targetNodeMock.Setup(x => x.SendBytes(It.IsAny<int>(), It.IsAny<byte[]>(), It.IsAny<Action<AckStatus>>()))
+            alreadyKnownNodeMock.Setup(x => x.SendBytes(It.IsAny<int>(), It.IsAny<byte[]>(), It.IsAny<Action<AckStatus>>()))
                .Callback<int, byte[], Action<AckStatus>>((mt, bytes, c) => responseToTargetNode = HolePunchingResponse.Unpack(bytes));
+
+            // Populating NetworkController
+            networkControllerMock.Setup(x => x.GetNodes_Internal()).Returns(new List<IExternalNodeInternal> {
+                alreadyKnownNodeMock.Object
+            });
+            networkControllerMock.Setup(x => x.GetNodes()).Returns(new List<IExternalNode> {
+                alreadyKnownNodeMock.Object
+            });
         }
 
         [Fact]
         public void Should_Respond_With_Two_HolePunchingResponses()
         {
             // Arrange
-            Guid requestedDeviceId = new Guid();
+            Guid requestedDeviceId = alreadyKnownNodeMock.Object.Id;
             var data = new HolePunchingRequest()
             {
                 RequestedDeviceId = requestedDeviceId
@@ -70,7 +77,7 @@ namespace NetworkControllerTests.IncomingMessages
             externalNodeMock.Verify(x => x.SendBytes(
                 It.Is<int>(x => x == (int)MessageType.HolePunchingResponse),
                 It.IsAny<byte[]>(), It.IsAny<Action<AckStatus>>()), Times.Once);
-            targetNodeMock.Verify(x => x.SendBytes(
+            alreadyKnownNodeMock.Verify(x => x.SendBytes(
                 It.Is<int>(x => x == (int)MessageType.HolePunchingResponse),
                 It.IsAny<byte[]>(), It.IsAny<Action<AckStatus>>()), Times.Once);
         }
@@ -79,7 +86,7 @@ namespace NetworkControllerTests.IncomingMessages
         public void Should_Send_One_Master_And_One_Slave_Response()
         {
             // Arrange
-            Guid requestedDeviceId = new Guid();
+            Guid requestedDeviceId = alreadyKnownNodeMock.Object.Id;
             var data = new HolePunchingRequest()
             {
                 RequestedDeviceId = requestedDeviceId
@@ -96,7 +103,7 @@ namespace NetworkControllerTests.IncomingMessages
         public void Should_Contain_Proper_Device_Id()
         {
             // Arrange
-            Guid requestedDeviceId = new Guid();
+            Guid requestedDeviceId = alreadyKnownNodeMock.Object.Id;
             var data = new HolePunchingRequest()
             {
                 RequestedDeviceId = requestedDeviceId
@@ -106,7 +113,9 @@ namespace NetworkControllerTests.IncomingMessages
             networkBuildingController.IncomingHolePunchingRequest(externalNodeMock.Object, data);
 
             // Assert
-            Assert.True(responseToExternalNode.DeviceId.Equals(targetNodeMock.Object.Id));
+            Assert.False(alreadyKnownNodeMock.Object.Id == Guid.Empty);
+            Assert.False(externalNodeMock.Object.Id == Guid.Empty);
+            Assert.True(responseToExternalNode.DeviceId.Equals(alreadyKnownNodeMock.Object.Id));
             Assert.True(responseToTargetNode.DeviceId.Equals(externalNodeMock.Object.Id));
         }
     }

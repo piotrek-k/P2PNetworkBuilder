@@ -263,11 +263,9 @@ namespace NetworkController.UDP
             }
 
             if (CurrentState != ConnectionState.Ready &&
-                type != (int)MessageType.PublicKey &&
-                type != (int)MessageType.PrivateKey &&
-                type != (int)MessageType.AdditionalInfo)
+                !MessageTypeGroups.CanBeSentWhenConnectionIsNotYetBuilt(type))
             {
-                _logger.LogWarning("Sending message before handshaking finished");
+                _logger.LogWarning($"Sending message before handshaking finished ({Enum.GetName(typeof(MessageType), type)})");
             }
 
             var data = new DataFrame
@@ -451,7 +449,7 @@ namespace NetworkController.UDP
                     }
                 }
 
-                if(decryptedPayload != null && decryptedPayload.Length != dataFrame.PayloadSize)
+                if (decryptedPayload != null && decryptedPayload.Length != dataFrame.PayloadSize)
                 {
                     // encryption algorithms might leave zero paddings which have to be removed
                     _logger.LogDebug("Payload size correction");
