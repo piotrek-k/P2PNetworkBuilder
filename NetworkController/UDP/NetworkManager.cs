@@ -131,6 +131,14 @@ namespace NetworkController.UDP
             get { return ((IPEndPoint)udpClient.Client.LocalEndPoint).Port; }
         }
 
+        public IPEndPoint DeviceEndpoint
+        {
+            get
+            {
+                return new IPEndPoint(DeviceIPAddress, DevicePort);
+            }
+        }
+
         public NetworkManager(ILogger logger, NetworkBehaviourTracker tracker)
         {
             _logger = logger;
@@ -156,12 +164,12 @@ namespace NetworkController.UDP
 
         public void RestorePreviousSessionFromStorage()
         {
-            if(_persistentStorage == null)
+            if (_persistentStorage == null)
             {
                 throw new Exception("Storage not registered");
             }
 
-            foreach(var n in _persistentStorage.Data)
+            foreach (var n in _persistentStorage.Data)
             {
                 var newNode = ConnectManually(
                     new IPEndPoint(n.LastIP, n.LastPort),
@@ -193,6 +201,7 @@ namespace NetworkController.UDP
             if (_knownNodes.Any(x => x.Id == id))
             {
                 _logger.LogError("Node already present");
+                return null;
             }
 
             var connTracker = _tracker.NewSession();
@@ -267,7 +276,7 @@ namespace NetworkController.UDP
         {
             try
             {
-                if(data.Length > MaxPacketSize)
+                if (data.Length > MaxPacketSize)
                 {
                     throw new Exception($"Data packet of size {data.Length} exceeded maximal allowed size ({MaxPacketSize})");
                 }
@@ -322,7 +331,14 @@ namespace NetworkController.UDP
                         node.FillCurrentEndpoint(senderIpEndPoint);
                     }
 
-                    node.HandleIncomingBytes(df);
+                    try
+                    {
+                        node.HandleIncomingBytes(df);
+                    }
+                    catch (Exception)
+                    {
+                        // ignore errors, all already handled
+                    }
                 }
                 else
                 {

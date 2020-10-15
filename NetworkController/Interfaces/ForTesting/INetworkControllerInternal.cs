@@ -13,6 +13,7 @@ namespace NetworkController.Interfaces.ForTesting
         IEnumerable<IExternalNodeInternal> GetNodes_Internal();
         IPAddress DeviceIPAddress { get; }
         int DevicePort { get; }
+        IPEndPoint DeviceEndpoint { get; }
         ExternalNode AddNode(Guid id);
         void OnNetworkChangedEvent(EventArgs e);
         void OnNodeFinishedHandshakingEvent(HandshakingFinishedEventArgs e);

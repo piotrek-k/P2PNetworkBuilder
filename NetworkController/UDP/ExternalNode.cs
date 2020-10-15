@@ -540,6 +540,8 @@ namespace NetworkController.UDP
                 {
                     SendReceiveAcknowledge(dataFrame.RetransmissionId, AckStatus.Failure);
                 }
+
+                throw;
             }
         }
 
