@@ -138,11 +138,24 @@ namespace NetworkController.UDP
         /// <summary>
         /// Class for sending messages and ensuring it was properly delivered
         /// </summary>
-        private ITransmissionManager _transmissionManager;
+        private ITransmissionManager TransmissionManager
+        {
+            get { return _tansmissionManager; }
+            set
+            {
+                if (!transmissionManagerWasPreset)
+                {
+                    _tansmissionManager = value;
+                }
+            }
+        }
+        private ITransmissionManager _tansmissionManager;
+        private bool transmissionManagerWasPreset = false;
+
         /// <summary>
         /// Counter of messages ensuring their proper order
         /// </summary>
-        private uint _highestReceivedSendingId;
+        public uint HighestReceivedSendingId { get; private set; }
 
         // Building states
         public bool AfterHolePunchingResponse_WaitingForPingResponse { get; set; } = false;
@@ -165,11 +178,12 @@ namespace NetworkController.UDP
 
             if (transmissionManager == null)
             {
-                _transmissionManager = new TransmissionManager(networkController, this, logger);
+                TransmissionManager = new TransmissionManager(networkController, this, logger);
             }
             else
             {
-                _transmissionManager = transmissionManager;
+                TransmissionManager = transmissionManager;
+                transmissionManagerWasPreset = true;
             }
         }
 
@@ -281,17 +295,17 @@ namespace NetworkController.UDP
 
             if (ensureDelivered)
             {
-                _transmissionManager.SendFrameEnsureDelivered(data, endpoint, callback);
+                TransmissionManager.SendFrameEnsureDelivered(data, endpoint, callback);
             }
             else
             {
-                _transmissionManager.SendFrameAndForget(data, endpoint);
+                TransmissionManager.SendFrameAndForget(data, endpoint);
             }
 
             _tracker.AddNewEvent(new ConnectionEvents(PossibleEvents.OutgoingMessage, GetMessageName(type) + " transm. id: " + data.RetransmissionId));
             if (!MessageTypeGroups.IsKeepaliveNoLogicRelatedMessage(data.MessageType))
             {
-                _logger.LogDebug($"{Id} \t Outgoing: {GetMessageName(data.MessageType) + " transm. id: " + data.RetransmissionId}, payload {encryptedPaylaod.Length}B ({payloadOfDataFrame.Length}B unenc)");
+                _logger.LogDebug($"{Id} \t Outgoing: {GetMessageName(data.MessageType) + " transm. id: " + data.RetransmissionId}, payload {encryptedPaylaod?.Length}B ({payloadOfDataFrame?.Length}B unenc)");
             }
         }
 
@@ -351,7 +365,7 @@ namespace NetworkController.UDP
                     if (dataFrame.MessageType == (int)MessageType.Restart)
                     {
                         CurrentState = ConnectionState.Ready;
-                        _transmissionManager.SetupIfNotWorking();
+                        TransmissionManager.SetupIfNotWorking();
                     }
                     else
                     {
@@ -482,24 +496,24 @@ namespace NetworkController.UDP
                 if (dataFrame.MessageType == (int)MessageType.Shutdown)
                 {
                     _currentState = ConnectionState.Shutdown;
-                    _transmissionManager.GentleShutdown();
+                    TransmissionManager.GentleShutdown();
                 }
 
                 if (dataFrame.MessageType == (int)MessageType.ReceiveAcknowledge)
                 {
-                    _transmissionManager.ReportReceivingDataArrivalAcknowledge(dataFrame, ReceiveAcknowledge.Unpack(decryptedPayload));
+                    TransmissionManager.ReportReceivingDataArrivalAcknowledge(dataFrame, ReceiveAcknowledge.Unpack(decryptedPayload));
                     return;
                 }
 
                 // checking dataFrame.RetransmissionId != 0 because messages that are not meant to be retransmitted leave it to 0
 
-                if ((_highestReceivedSendingId + 1 != dataFrame.RetransmissionId
-                    || (_highestReceivedSendingId == uint.MaxValue && dataFrame.RetransmissionId != 1))
+                if ((HighestReceivedSendingId + 1 != dataFrame.RetransmissionId
+                    || (HighestReceivedSendingId == uint.MaxValue && dataFrame.RetransmissionId != 1))
                     && dataFrame.RetransmissionId != 0)
                 {
                     _logger.LogDebug($"Message {dataFrame.RetransmissionId} omitted as it has incorrect transmission id" +
                         $" (got {dataFrame.RetransmissionId} but should be " +
-                        $"{(_highestReceivedSendingId != uint.MaxValue ? _highestReceivedSendingId + 1 : 1)})");
+                        $"{(HighestReceivedSendingId != uint.MaxValue ? HighestReceivedSendingId + 1 : 1)})");
                     return;
                 }
 
@@ -518,7 +532,7 @@ namespace NetworkController.UDP
 
                 if (dataFrame.RetransmissionId != 0)
                 {
-                    _highestReceivedSendingId = dataFrame.RetransmissionId;
+                    HighestReceivedSendingId = dataFrame.RetransmissionId;
                 }
 
                 if (dataFrame.ExpectAcknowledge)
@@ -533,7 +547,7 @@ namespace NetworkController.UDP
 
                 if (dataFrame.RetransmissionId != 0)
                 {
-                    _highestReceivedSendingId = dataFrame.RetransmissionId;
+                    HighestReceivedSendingId = dataFrame.RetransmissionId;
                 }
 
                 if (dataFrame.ExpectAcknowledge)
@@ -551,9 +565,9 @@ namespace NetworkController.UDP
 
             Aes = null;
             Ses = null;
-            _transmissionManager.Destroy();
-            _transmissionManager = new TransmissionManager(NetworkController, this, _logger);
-            _highestReceivedSendingId = 0;
+            TransmissionManager.Destroy();
+            TransmissionManager = new TransmissionManager(NetworkController, this, _logger);
+            HighestReceivedSendingId = 0;
             IsHandshakeCompleted = false;
 
             if (sendPublicKey)
@@ -645,9 +659,12 @@ namespace NetworkController.UDP
         public void ResetMessageCounter()
         {
             _logger.LogInformation("Counter reset");
-            _transmissionManager.Destroy();
-            _transmissionManager = new TransmissionManager(NetworkController, this, _logger);
-            _highestReceivedSendingId = 0;
+            TransmissionManager.Destroy();
+            if (!transmissionManagerWasPreset)
+            {
+                TransmissionManager = new TransmissionManager(NetworkController, this, _logger);
+            }
+            HighestReceivedSendingId = 0;
         }
 
         public void RestoreSecurityKeys(byte[] key, Action actionOnFailure = null)
