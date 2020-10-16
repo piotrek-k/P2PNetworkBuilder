@@ -14,7 +14,7 @@ namespace NetworkController.Interfaces
 
         void ReportReceivingDataArrivalAcknowledge(DataFrame df, ReceiveAcknowledge receivedPayload);
 
-        void SetupIfNotWorking();
+        void SetupIfNotWorking(uint startingValue, IExternalNode node = null);
         void GentleShutdown();
         void Destroy();
     }

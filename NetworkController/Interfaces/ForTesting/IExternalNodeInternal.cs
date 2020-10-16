@@ -35,7 +35,7 @@ namespace NetworkController.Interfaces.ForTesting
         void ReportConnectionFailure();
         void ReportThatConnectionIsSetUp();
 
-        void ResetMessageCounter();
+        void ResetMessageCounter(uint newSendingId, uint newHighestReceivedId);
 
         new bool IsHandshakeCompleted { get; set; }
     }

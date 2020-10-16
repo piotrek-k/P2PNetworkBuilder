@@ -36,19 +36,22 @@ namespace NetworkController.Threads
         private CancellationTokenSource _cancelThreadSource;
         private CancellationToken _cancelThread;
 
-        public TransmissionManager(INetworkControllerInternal networkController, IExternalNodeInternal externalNode, ILogger logger)
+        public TransmissionManager(INetworkControllerInternal networkController, IExternalNodeInternal externalNode, ILogger logger, uint startingValue = 1)
         {
             _networkController = networkController;
             _externalNode = externalNode;
             _logger = logger;
 
-            SetupIfNotWorking();
+            SetupIfNotWorking(startingValue);
         }
 
-        public void SetupIfNotWorking()
+        public void SetupIfNotWorking(uint startingValue, IExternalNode node = null)
         {
             if (retransmissionThread == null)
             {
+                allSentMessagesCounter = startingValue;
+                currentSendingId = startingValue;
+
                 _cancelThreadSource = new CancellationTokenSource();
                 _cancelThread = _cancelThreadSource.Token;
 

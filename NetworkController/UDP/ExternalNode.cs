@@ -293,6 +293,12 @@ namespace NetworkController.UDP
                 IV = generatedSesIV
             };
 
+            _tracker.AddNewEvent(new ConnectionEvents(PossibleEvents.OutgoingMessage, GetMessageName(type) + " transm. id: " + data.RetransmissionId));
+            if (!MessageTypeGroups.IsKeepaliveNoLogicRelatedMessage(data.MessageType))
+            {
+                _logger.LogDebug($"{Id} \t Outgoing: {GetMessageName(data.MessageType) + " transm. id: " + data.RetransmissionId}, payload {encryptedPaylaod?.Length}B ({payloadOfDataFrame?.Length}B unenc)");
+            }
+
             if (ensureDelivered)
             {
                 TransmissionManager.SendFrameEnsureDelivered(data, endpoint, callback);
@@ -300,12 +306,6 @@ namespace NetworkController.UDP
             else
             {
                 TransmissionManager.SendFrameAndForget(data, endpoint);
-            }
-
-            _tracker.AddNewEvent(new ConnectionEvents(PossibleEvents.OutgoingMessage, GetMessageName(type) + " transm. id: " + data.RetransmissionId));
-            if (!MessageTypeGroups.IsKeepaliveNoLogicRelatedMessage(data.MessageType))
-            {
-                _logger.LogDebug($"{Id} \t Outgoing: {GetMessageName(data.MessageType) + " transm. id: " + data.RetransmissionId}, payload {encryptedPaylaod?.Length}B ({payloadOfDataFrame?.Length}B unenc)");
             }
         }
 
@@ -365,7 +365,8 @@ namespace NetworkController.UDP
                     if (dataFrame.MessageType == (int)MessageType.Restart)
                     {
                         CurrentState = ConnectionState.Ready;
-                        TransmissionManager.SetupIfNotWorking();
+                        // TODO: change starting value to dynamically generated (like on connection restoring)
+                        TransmissionManager.SetupIfNotWorking(1);
                     }
                     else
                     {
@@ -484,13 +485,39 @@ namespace NetworkController.UDP
                     }
                     else
                     {
-                        ResetMessageCounter();
                         SendReceiveAcknowledge(dataFrame.RetransmissionId, AckStatus.Success);
+
+                        uint newRetransmissionId = Math.Max(dataFrame.RetransmissionId + 10, HighestReceivedSendingId + 10);
+
+                        ResetMessageCounter(newRetransmissionId, newRetransmissionId);
+
+                        SendBytes((int)MessageType.ConnectionRestoreResponse, new ConnectionRestoreResponse()
+                        {
+                            ProposedStartingRetransmissionId = newRetransmissionId
+                        }.PackToBytes());
 
                         IsHandshakeCompleted = false;
 
                         return;
                     }
+                }
+
+                if (dataFrame.MessageType == (int)MessageType.ConnectionRestoreResponse)
+                {
+                    var data = ConnectionRestoreResponse.Unpack(dataFrame.Payload);
+
+                    // +1 because other side already sent one message after counter reset
+                    ResetMessageCounter(data.ProposedStartingRetransmissionId + 1, dataFrame.RetransmissionId);
+
+                    SendReceiveAcknowledge(dataFrame.RetransmissionId, AckStatus.Success);
+
+                    SendBytes((int)MessageType.AdditionalInfoRequest, null, (air_status) =>
+                    {
+                        var ai = HandshakeController.GenerateAdditionalInfo(this);
+                        SendBytes((int)MessageType.AdditionalInfo, ai.PackToBytes());
+                    });
+
+                    //return;
                 }
 
                 if (dataFrame.MessageType == (int)MessageType.Shutdown)
@@ -656,7 +683,7 @@ namespace NetworkController.UDP
             Id = newId;
         }
 
-        public void ResetMessageCounter()
+        public void ResetMessageCounter(uint newSendingId, uint newHighestReceivedId)
         {
             _logger.LogInformation("Counter reset");
             TransmissionManager.Destroy();
@@ -664,7 +691,8 @@ namespace NetworkController.UDP
             {
                 TransmissionManager = new TransmissionManager(NetworkController, this, _logger);
             }
-            HighestReceivedSendingId = 0;
+            TransmissionManager.SetupIfNotWorking(newSendingId, this);
+            HighestReceivedSendingId = newHighestReceivedId;
         }
 
         public void RestoreSecurityKeys(byte[] key, Action actionOnFailure = null)
@@ -681,16 +709,6 @@ namespace NetworkController.UDP
                 {
                     CurrentState = ConnectionState.Failed;
                     actionOnFailure();
-                }
-                else if (crr_status == AckStatus.Success)
-                {
-                    ResetMessageCounter();
-
-                    SendBytes((int)MessageType.AdditionalInfoRequest, null, (air_status) =>
-                    {
-                        var ai = HandshakeController.GenerateAdditionalInfo(this);
-                        SendBytes((int)MessageType.AdditionalInfo, ai.PackToBytes());
-                    });
                 }
             });
         }

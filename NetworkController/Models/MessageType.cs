@@ -25,5 +25,6 @@ namespace NetworkController.Models
         HolePunchingResponse = 11,
 
         ConnectionRestoreRequest = 12,   // use when you've got encryption keys but have to sync message counters
+        ConnectionRestoreResponse = 13
     }
 }
