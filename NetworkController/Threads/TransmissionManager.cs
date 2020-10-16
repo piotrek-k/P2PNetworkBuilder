@@ -190,6 +190,11 @@ namespace NetworkController.Threads
             }
         }
 
+        protected override void EventOnAddToDataFrameQueue((WaitingMessage, Action<AckStatus>) item)
+        {
+            //throw new NotImplementedException();
+        }
+
         ~TransmissionManager()
         {
             Destroy();

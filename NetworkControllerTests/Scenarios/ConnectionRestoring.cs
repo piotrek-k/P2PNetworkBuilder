@@ -17,13 +17,13 @@ namespace NetworkControllerTests.IncomingMessages
 {
     public class ConnectionRestoring
     {
-        private Mock<ILogger<HandshakingControllerTest>> loggerMock;
+        private Mock<ILogger<ConnectionRestoring>> loggerMock;
         private ILogger logger;
         NetworkBehaviourTracker nbt;
 
         public ConnectionRestoring(ITestOutputHelper output)
         {
-            loggerMock = new Mock<ILogger<HandshakingControllerTest>>();
+            loggerMock = new Mock<ILogger<ConnectionRestoring>>();
             logger = new LogToOutput(output, "logger").CreateLogger("category");
             nbt = new NetworkBehaviourTracker();
         }
@@ -37,8 +37,8 @@ namespace NetworkControllerTests.IncomingMessages
 
             // Fake network
             FakeNetworkBuilder fnb = new FakeNetworkBuilder(loggerMock.Object, nbt);
-            var device1 = fnb.GenerateFullMockOfNetworkController(Guid.NewGuid());
-            var device2 = fnb.GenerateFullMockOfNetworkController(Guid.NewGuid());
+            var device1 = fnb.GenerateFullMockOfNetworkController(Guid.NewGuid()).Object;
+            var device2 = fnb.GenerateFullMockOfNetworkController(Guid.NewGuid()).Object;
 
             // Each side have different keys
             ExternalNode en1 = device2.AddNode(device1.DeviceId);
@@ -52,16 +52,18 @@ namespace NetworkControllerTests.IncomingMessages
              * Act
              */
 
+            // Send ConnectionRestoreRequest from device1 to device2
+            en2.SendBytes((int)MessageType.ConnectionRestoreRequest, new ConnectionRestoreRequest
+            {
+                SampleDataForEncryptionVerification = ExternalNode.SAMPLE_ENCRYPTION_VERIFICATION_TEXT
+            }.PackToBytes(), (s) =>
+            {
+                resultStatus = s;
+            });
+
             try
             {
-                // Send ConnectionRestoreRequest from device1 to device2
-                en2.SendBytes((int)MessageType.ConnectionRestoreRequest, new ConnectionRestoreRequest
-                {
-                    SampleDataForEncryptionVerification = ExternalNode.SAMPLE_ENCRYPTION_VERIFICATION_TEXT
-                }.PackToBytes(), (s) =>
-                {
-                    resultStatus = s;
-                });
+                fnb.ProcessMessages();
             }
             catch (JsonReaderException)
             {
@@ -83,8 +85,8 @@ namespace NetworkControllerTests.IncomingMessages
 
             // Fake network
             FakeNetworkBuilder fnb = new FakeNetworkBuilder(loggerMock.Object, nbt);
-            var device1 = fnb.GenerateFullMockOfNetworkController(Guid.NewGuid());
-            var device2 = fnb.GenerateFullMockOfNetworkController(Guid.NewGuid());
+            var device1 = fnb.GenerateFullMockOfNetworkController(Guid.NewGuid()).Object;
+            var device2 = fnb.GenerateFullMockOfNetworkController(Guid.NewGuid()).Object;
 
             // Keys are the same
             ExternalNode en1 = device2.AddNode(device1.DeviceId);
@@ -107,6 +109,8 @@ namespace NetworkControllerTests.IncomingMessages
                 resultStatus = s;
             });
 
+            fnb.ProcessMessages();
+
             /**
               * Assert
               */
@@ -123,8 +127,8 @@ namespace NetworkControllerTests.IncomingMessages
 
             // Fake network
             FakeNetworkBuilder fnb = new FakeNetworkBuilder(logger, nbt);
-            var device1 = fnb.GenerateFullMockOfNetworkController(Guid.NewGuid());
-            var device2 = fnb.GenerateFullMockOfNetworkController(Guid.NewGuid());
+            var device1 = fnb.GenerateFullMockOfNetworkController(Guid.NewGuid()).Object;
+            var device2 = fnb.GenerateFullMockOfNetworkController(Guid.NewGuid()).Object;
 
             var validKeys = new SymmetricEncryptionService();
 
@@ -150,7 +154,7 @@ namespace NetworkControllerTests.IncomingMessages
             // Restore keys
             en2.RestoreSecurityKeys(validKeys.Aes.Key);
 
-
+            fnb.ProcessMessages();
 
             // Checking response to random messages
             // Incorrectly set HighestReceivedSendingId would cause to omit those messages
@@ -163,6 +167,8 @@ namespace NetworkControllerTests.IncomingMessages
             {
                 response2Received = true;
             });
+
+            fnb.ProcessMessages();
 
             /**
              * Assert

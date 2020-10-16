@@ -6,6 +6,7 @@ using NetworkController.DataTransferStructures.Other;
 using NetworkController.Interfaces;
 using NetworkController.Interfaces.ForTesting;
 using NetworkController.Models;
+using NetworkController.Threads;
 using NetworkController.UDP;
 using System;
 using System.Collections.Generic;
@@ -13,6 +14,7 @@ using System.Linq;
 using System.Net;
 using System.Runtime.Serialization;
 using System.Text;
+using static NetworkController.Threads.TransmissionManagerBase;
 
 namespace NetworkControllerTests.Helper
 {
@@ -22,12 +24,14 @@ namespace NetworkControllerTests.Helper
         public class ConnectionInfo
         {
             public ExternalNode Node { get; set; }
-            public uint Counter { get; set; }
+            public FakeTransmissionManager FakeTransmissionManager { get; set; }
         }
         public Dictionary<Guid, List<ConnectionInfo>> ExternalConnections { get; set; } = new Dictionary<Guid, List<ConnectionInfo>>();
         private ILogger _logger;
         private NetworkBehaviourTracker _nbt;
         private Random rnd = new Random(1);
+        public Queue<(WaitingMessage, Action<AckStatus>, FakeTransmissionManager)> GlobalMessageQueue 
+            = new Queue<(WaitingMessage, Action<AckStatus>, FakeTransmissionManager)>();
 
         public FakeNetworkBuilder(ILogger logger, NetworkBehaviourTracker nbt)
         {
@@ -35,17 +39,7 @@ namespace NetworkControllerTests.Helper
             _nbt = nbt;
         }
 
-        //public void SimulateSendingMessage(DataFrame df, INetworkControllerInternal destination, Action<AckStatus> c = null)
-        //{
-        //    _tm.Object.SendFrameEnsureDelivered(df, new IPEndPoint(destination.DeviceIPAddress, destination.DevicePort), c);
-        //}
-
-        //public void SimulateSendingMessage(DataFrame df, IPEndPoint destinationEndpoint, Action<AckStatus> c = null)
-        //{
-        //    _tm.Object.SendFrameEnsureDelivered(df, destinationEndpoint, c);
-        //}
-
-        public void HandleMessage(DataFrame df, IPEndPoint ep, Action<AckStatus> c = null)
+        public void SimulateSendingMessage(DataFrame df, IPEndPoint ep, Action<AckStatus> c = null)
         {
             var destDevice = Devices.FirstOrDefault(x => new IPEndPoint(x.DeviceIPAddress, x.DevicePort).Equals(ep));
             var info = ExternalConnections[destDevice.DeviceId].FirstOrDefault(x => x.Node.Id == df.SourceNodeIdGuid);
@@ -53,7 +47,7 @@ namespace NetworkControllerTests.Helper
             info.Node.HandleIncomingBytes(df);
         }
 
-        public INetworkControllerInternal GenerateFullMockOfNetworkController(Guid deviceId)
+        public Mock<INetworkControllerInternal> GenerateFullMockOfNetworkController(Guid deviceId)
         {
             var result = new Mock<INetworkControllerInternal>();
 
@@ -93,7 +87,7 @@ namespace NetworkControllerTests.Helper
                     newNode = new ExternalNode(guid, result.Object, _logger, _nbt.NewSession(), ftm);
                     //newNode.PublicEndpoint = result.Object.DeviceEndpoint;
                     newNode.PublicEndpoint = Devices.First(x => x.DeviceId == guid).DeviceEndpoint;
-                    ExternalNodesStorage.Add(new ConnectionInfo { Node = newNode, Counter = 1 });
+                    ExternalNodesStorage.Add(new ConnectionInfo { Node = newNode, FakeTransmissionManager = ftm });
                     return newNode;
                 }
                 else
@@ -105,12 +99,27 @@ namespace NetworkControllerTests.Helper
 
             Devices.Add(result.Object);
 
-            return result.Object;
+            return result;
         }
 
         public bool EndpointExists(IPEndPoint endpoint)
         {
             return Devices.Any(x => x.DeviceIPAddress.Equals(endpoint.Address) && x.DevicePort.Equals(endpoint.Port));
+        }
+
+        public void ProcessMessages()
+        {
+            bool finished = false;
+            while (!finished)
+            {
+                finished = true;
+
+                while(GlobalMessageQueue.Count > 0)
+                {
+                    var item = GlobalMessageQueue.Dequeue();
+                    item.Item3.ProcessNextMessage(item.Item1, item.Item2);
+                }
+            }
         }
     }
 }

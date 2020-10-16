@@ -12,8 +12,32 @@ namespace NetworkController.Threads
     {
         protected uint currentSendingId = 1;
         protected uint allSentMessagesCounter = 1;
-        protected Queue<(WaitingMessage, Action<AckStatus>)> _dataframeQueue = new Queue<(WaitingMessage, Action<AckStatus>)>();
-        protected class WaitingMessage
+        protected QueueWithEvents _dataframeQueue;
+
+        public TransmissionManagerBase()
+        {
+            _dataframeQueue = new QueueWithEvents(this);
+        }
+
+        protected class QueueWithEvents : Queue<(WaitingMessage, Action<AckStatus>)>
+        {
+            private TransmissionManagerBase _tm;
+
+            public QueueWithEvents(TransmissionManagerBase tm) : base()
+            {
+                _tm = tm;
+            }
+
+            public new void Enqueue((WaitingMessage, Action<AckStatus>) item)
+            {
+                base.Enqueue(item);
+                _tm.EventOnAddToDataFrameQueue(item);
+            }
+        }
+
+        protected abstract void EventOnAddToDataFrameQueue((WaitingMessage, Action<AckStatus>) item);
+
+        public class WaitingMessage
         {
             public DataFrame DataFrame { get; set; }
             public IPEndPoint Destination { get; set; }
