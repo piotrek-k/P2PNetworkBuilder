@@ -8,9 +8,8 @@ using NetworkController.Threads;
 using System;
 using System.Collections.Generic;
 using System.Net;
-using System.Text;
 
-namespace NetworkControllerTests.Helper
+namespace NetworkControllerTests.Mocks
 {
     public class FakeTransmissionManager : TransmissionManagerBase, ITransmissionManager
     {

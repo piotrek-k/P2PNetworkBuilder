@@ -1,5 +1,4 @@
 ﻿using ConnectionsManager.Debugging;
-using ConnectionsManager.Tests;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NetworkController.DataTransferStructures;
@@ -8,12 +7,13 @@ using NetworkController.Encryption;
 using NetworkController.Models;
 using NetworkController.UDP;
 using NetworkControllerTests.Helper;
+using NetworkControllerTests.Mocks;
 using Newtonsoft.Json;
 using System;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace NetworkControllerTests.IncomingMessages
+namespace NetworkControllerTests.Scenarios
 {
     public class ConnectionRestoring
     {

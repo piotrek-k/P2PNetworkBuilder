@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using Xunit.Abstractions;
 
-namespace ConnectionsManager.Tests
+namespace NetworkControllerTests.Helper
 {
     public class LogToOutput : ILoggerProvider
     {

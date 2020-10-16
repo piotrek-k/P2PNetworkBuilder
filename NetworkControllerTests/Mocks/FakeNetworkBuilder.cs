@@ -6,17 +6,14 @@ using NetworkController.DataTransferStructures.Other;
 using NetworkController.Interfaces;
 using NetworkController.Interfaces.ForTesting;
 using NetworkController.Models;
-using NetworkController.Threads;
 using NetworkController.UDP;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Runtime.Serialization;
-using System.Text;
 using static NetworkController.Threads.TransmissionManagerBase;
 
-namespace NetworkControllerTests.Helper
+namespace NetworkControllerTests.Mocks
 {
     public class FakeNetworkBuilder
     {
