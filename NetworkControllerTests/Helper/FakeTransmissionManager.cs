@@ -95,17 +95,23 @@ namespace NetworkControllerTests.Helper
 
             _dataframeQueue.Enqueue((waitingMessage, callback));
 
-            _fnb.HandleMessage(df, destination, callback);
-
-            // run all waiting callbacks
-            while (_waitingCallbacks.Count > 0)
+            try
             {
-                var waitingCallback = _waitingCallbacks.Dequeue();
-                var cb = waitingCallback.Item1;
-                var receiveAck = waitingCallback.Item2;
-
-                cb?.Invoke((AckStatus)receiveAck.Status);
+                _fnb.HandleMessage(df, destination, callback);
             }
+            finally
+            {
+                // run all waiting callbacks
+                while (_waitingCallbacks.Count > 0)
+                {
+                    var waitingCallback = _waitingCallbacks.Dequeue();
+                    var cb = waitingCallback.Item1;
+                    var receiveAck = waitingCallback.Item2;
+
+                    cb?.Invoke((AckStatus)receiveAck.Status);
+                }
+            }
+
         }
 
         public void SetupIfNotWorking(uint startingValue, IExternalNode node = null)

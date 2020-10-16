@@ -51,26 +51,6 @@ namespace NetworkControllerTests.Helper
             var info = ExternalConnections[destDevice.DeviceId].FirstOrDefault(x => x.Node.Id == df.SourceNodeIdGuid);
 
             info.Node.HandleIncomingBytes(df);
-
-            //try
-            //{
-            //    //df.RetransmissionId = info.Counter;
-            //    info.Node.HandleIncomingBytes(df);
-            //    //info.Counter++;
-
-            //    //if (c != null)
-            //    //{
-            //    //    c.Invoke(AckStatus.Success);
-            //    //}
-            //}
-            //catch (Exception)
-            //{
-            //    //if (c != null)
-            //    //{
-            //    //    c.Invoke(AckStatus.Failure);
-            //    //}
-            //    //throw;
-            //}
         }
 
         public INetworkControllerInternal GenerateFullMockOfNetworkController(Guid deviceId)

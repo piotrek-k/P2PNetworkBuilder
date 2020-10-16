@@ -8,6 +8,7 @@ using NetworkController.Encryption;
 using NetworkController.Models;
 using NetworkController.UDP;
 using NetworkControllerTests.Helper;
+using Newtonsoft.Json;
 using System;
 using Xunit;
 using Xunit.Abstractions;
@@ -51,19 +52,25 @@ namespace NetworkControllerTests.IncomingMessages
              * Act
              */
 
-            // Send ConnectionRestoreRequest from device1 to device2
-            en2.SendBytes((int)MessageType.ConnectionRestoreRequest, new ConnectionRestoreRequest
+            try
             {
-                SampleDataForEncryptionVerification = ExternalNode.SAMPLE_ENCRYPTION_VERIFICATION_TEXT
-            }.PackToBytes(), (s) =>
+                // Send ConnectionRestoreRequest from device1 to device2
+                en2.SendBytes((int)MessageType.ConnectionRestoreRequest, new ConnectionRestoreRequest
+                {
+                    SampleDataForEncryptionVerification = ExternalNode.SAMPLE_ENCRYPTION_VERIFICATION_TEXT
+                }.PackToBytes(), (s) =>
+                {
+                    resultStatus = s;
+                });
+            }
+            catch (JsonReaderException)
             {
-                resultStatus = s;
-            });
+                // we expect that
+            }
 
             /**
               * Assert
               */
-
             Assert.True(resultStatus == AckStatus.Failure);
         }
 
@@ -143,7 +150,7 @@ namespace NetworkControllerTests.IncomingMessages
             // Restore keys
             en2.RestoreSecurityKeys(validKeys.Aes.Key);
 
-            
+
 
             // Checking response to random messages
             // Incorrectly set HighestReceivedSendingId would cause to omit those messages
