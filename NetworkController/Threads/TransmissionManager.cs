@@ -11,21 +11,12 @@ using Newtonsoft.Json.Converters;
 
 namespace NetworkController.Threads
 {
-    public class TransmissionManager : ITransmissionManager
+    public class TransmissionManager : TransmissionManagerBase, ITransmissionManager
     {
-        class WaitingMessage
-        {
-            public DataFrame DataFrame { get; set; }
-            public IPEndPoint Destination { get; set; }
-        }
-
         private INetworkControllerInternal _networkController;
         private readonly IExternalNodeInternal _externalNode;
         private ILogger _logger;
         private object counterAndQueueLock = new object();
-        private Queue<(WaitingMessage, Action<AckStatus>)> _dataframeQueue = new Queue<(WaitingMessage, Action<AckStatus>)>();
-        private uint currentSendingId = 1;
-        private uint allSentMessagesCounter = 1;
         private object threadCheckLock = new object();
         private object retransmissionSleepLock = new object();
 
@@ -45,12 +36,11 @@ namespace NetworkController.Threads
             SetupIfNotWorking(startingValue);
         }
 
-        public void SetupIfNotWorking(uint startingValue, IExternalNode node = null)
+        public override void SetupIfNotWorking(uint startingValue, IExternalNode node = null)
         {
             if (retransmissionThread == null)
             {
-                allSentMessagesCounter = startingValue;
-                currentSendingId = startingValue;
+                base.SetupIfNotWorking(startingValue, node);
 
                 _cancelThreadSource = new CancellationTokenSource();
                 _cancelThread = _cancelThreadSource.Token;
@@ -61,14 +51,14 @@ namespace NetworkController.Threads
             }
         }
 
-        public void GentleShutdown()
+        public override void GentleShutdown()
         {
             //retransmissionThread.Abort();
             _cancelThreadSource.Cancel();
             retransmissionThread = null;
         }
 
-        public void Destroy()
+        public override void Destroy()
         {
             //retransmissionThread.Abort();
             // temporal solution
@@ -76,7 +66,7 @@ namespace NetworkController.Threads
             _logger.LogDebug("Transmission manager destroyed");
         }
 
-        public void SendFrameEnsureDelivered(DataFrame df, IPEndPoint destination, Action<AckStatus> callback = null)
+        public override void SendFrameEnsureDelivered(DataFrame df, IPEndPoint destination, Action<AckStatus> callback = null)
         {
             if (retransmissionThread == null)
             {
@@ -85,34 +75,18 @@ namespace NetworkController.Threads
 
             lock (counterAndQueueLock)
             {
-                df.RetransmissionId = allSentMessagesCounter;
+                base.SendFrameEnsureDelivered(df, destination, callback);
 
-                if (allSentMessagesCounter != uint.MaxValue)
-                {
-                    allSentMessagesCounter++;
-                }
-                else
-                {
-                    allSentMessagesCounter = 1;
-                }
-
-                var waitingMessage = new WaitingMessage()
-                {
-                    DataFrame = df,
-                    Destination = destination
-                };
-
-                _dataframeQueue.Enqueue((waitingMessage, callback));
                 Monitor.Pulse(counterAndQueueLock);
             }
         }
 
-        public void SendFrameAndForget(DataFrame df, IPEndPoint destination)
+        public override void SendFrameAndForget(DataFrame df, IPEndPoint destination)
         {
             _networkController.SendBytes(df.PackToBytes(), destination);
         }
 
-        public void ReportReceivingDataArrivalAcknowledge(DataFrame df, ReceiveAcknowledge receivedPayload)
+        public override void ReportReceivingDataArrivalAcknowledge(DataFrame df, ReceiveAcknowledge receivedPayload)
         {
             if (retransmissionThread == null)
             {
@@ -123,20 +97,7 @@ namespace NetworkController.Threads
             {
                 if (df.RetransmissionId == currentSendingId)
                 {
-                    if (_dataframeQueue.Count > 0)
-                    {
-                        (WaitingMessage wm, Action<AckStatus> callback) = _dataframeQueue.Dequeue();
-                        callback?.Invoke((AckStatus)receivedPayload.Status);
-
-                        if (currentSendingId != uint.MaxValue)
-                        {
-                            currentSendingId++;
-                        }
-                        else
-                        {
-                            currentSendingId = 1;
-                        }
-                    }
+                    base.HandleMessageWithCorrectId(receivedPayload);
 
                     lock (retransmissionSleepLock)
                     {
@@ -149,6 +110,11 @@ namespace NetworkController.Threads
                     _logger.LogError($"Received incorrect retransmission id. {df.RetransmissionId} (received) vs {currentSendingId} (wanted)");
                 }
             }
+        }
+
+        protected override void HandleAckCallback(Action<AckStatus> callback, ReceiveAcknowledge receivedPayload)
+        {
+            callback?.Invoke((AckStatus)receivedPayload.Status);
         }
 
         /// <summary>
