@@ -336,12 +336,13 @@ namespace NetworkController.UDP
         /// <summary>
         /// Sends PublicKey to external node to begin connection
         /// </summary>
-        public void InitializeConnection()
+        public void InitializeConnection(uint? proposedRetransmissionId = null)
         {
             Aes = new AsymmetricEncryptionService();
             var payload = new ConnectionInitPublicKey()
             {
-                RsaParams = Aes.PublicKey
+                RsaParams = Aes.PublicKey,
+                ProposedStartingRetransmissionId = proposedRetransmissionId
             }.PackToBytes();
 
             CurrentState = ConnectionState.Building;
@@ -378,16 +379,28 @@ namespace NetworkController.UDP
                 RestoreIfFailed();
 
                 /**
-                 * RESETTING
+                 * RESETTING CONNECTION
                  */
 
                 if (dataFrame.MessageType == (int)MessageType.PublicKey && ConnectionResetExpirationTime != null &&
                     ConnectionResetExpirationTime > DateTimeOffset.UtcNow)
                 {
                     // reset request was sent by this node and exernal node sent PublicKey as response
+                    var pubKeyObj = ConnectionInitPublicKey.Unpack(dataFrame.Payload);
 
                     ConnectionResetExpirationTime = null;
-                    PerformConnectionReset(false);
+                    if (pubKeyObj.ProposedStartingRetransmissionId == null)
+                    {
+                        throw new Exception("Resetting connection: Public key doesn't contain proposed retransmission id");
+                    }
+                    else
+                    {
+                        PerformConnectionReset(false, pubKeyObj.ProposedStartingRetransmissionId.Value);
+
+                        SendReceiveAcknowledge(dataFrame.RetransmissionId, AckStatus.Success);
+
+                        HighestReceivedSendingId = dataFrame.RetransmissionId - 1;
+                    }
                 }
 
                 if (dataFrame.MessageType == (int)MessageType.ResetRequest)
@@ -402,7 +415,9 @@ namespace NetworkController.UDP
                     if (NetworkController.ConnectionResetRule(this))
                     {
                         _logger.LogInformation("Connection reset request accepted");
-                        PerformConnectionReset(true);
+                        uint newRetransmissionId = GenerateNewSafeRetransmissionId(dataFrame);
+
+                        PerformConnectionReset(true, newRetransmissionId);
 
                         return;
                     }
@@ -487,7 +502,7 @@ namespace NetworkController.UDP
                     {
                         SendReceiveAcknowledge(dataFrame.RetransmissionId, AckStatus.Success);
 
-                        uint newRetransmissionId = Math.Max(dataFrame.RetransmissionId + 10, HighestReceivedSendingId + 10);
+                        uint newRetransmissionId = GenerateNewSafeRetransmissionId(dataFrame);
 
                         ResetMessageCounter(newRetransmissionId, newRetransmissionId);
 
@@ -586,21 +601,43 @@ namespace NetworkController.UDP
             }
         }
 
-        private void PerformConnectionReset(bool sendPublicKey)
+        /// <summary>
+        /// Generate retransmissionId that will be far from actual values, so retransmitted messages won't
+        /// interfere app message flow
+        /// </summary>
+        /// <param name="dataFrame"></param>
+        /// <returns></returns>
+        private uint GenerateNewSafeRetransmissionId(DataFrame dataFrame)
+        {
+            //TODO: handle int overflow
+            return Math.Max(dataFrame.RetransmissionId + 10, HighestReceivedSendingId + 10);
+        }
+
+        private void PerformConnectionReset(bool sendPublicKey, uint newSendingId)
         {
             _logger.LogInformation("Resetting connection");
 
             Aes = null;
             Ses = null;
-            TransmissionManager.Destroy();
-            TransmissionManager = new TransmissionManager(NetworkController, this, _logger);
-            HighestReceivedSendingId = 0;
+
+            if (sendPublicKey)
+            {
+                ResetMessageCounter(newSendingId, newSendingId);
+            }
+            else
+            {
+                // if we are here, that means node processes PublicKey
+                // and it's reset response. In that case, newSendingId
+                // should be bigger to take sent message into account
+                ResetMessageCounter(newSendingId + 1, newSendingId);
+            }
+
             IsHandshakeCompleted = false;
 
             if (sendPublicKey)
             {
                 // begin handshake
-                InitializeConnection();
+                InitializeConnection(newSendingId);
             }
 
             OnConnectionResetEvent(new ConnectionResetEventArgs

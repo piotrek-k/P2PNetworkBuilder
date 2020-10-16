@@ -30,7 +30,7 @@ namespace NetworkController.Interfaces.ForTesting
 
         void SendPingSeries();
 
-        void InitializeConnection();
+        void InitializeConnection(uint? proposedRetransmissionId = null);
         void ReportIncomingPingResponse();
         void ReportConnectionFailure();
         void ReportThatConnectionIsSetUp();

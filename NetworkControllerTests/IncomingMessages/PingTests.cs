@@ -54,7 +54,7 @@ namespace NetworkControllerTests.IncomingMessages
             pingController.IncomingPingResponse(externalNodeMock.Object, null);
 
             // Assert
-            externalNodeMock.Verify(x => x.InitializeConnection(),
+            externalNodeMock.Verify(x => x.InitializeConnection(It.IsAny<uint?>()),
                 Times.Once);
             Assert.False(externalNodeMock.Object.AfterHolePunchingResponse_WaitingForPingResponse);
         }
