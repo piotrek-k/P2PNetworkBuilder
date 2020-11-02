@@ -8,7 +8,7 @@ namespace NetworkController.Interfaces
     public interface INetworkController
     {
         void StartListening(int port = 13000);
-        List<IExternalNode> GetNodes();
+        IEnumerable<IExternalNode> Nodes { get; }
         List<Guid> Blacklist { get; }
         Guid DeviceId { get; set; }
         IExternalNode ConnectManually(IPEndPoint endpoint, bool initializeConnection = true, Guid? knownId = null);

@@ -55,7 +55,7 @@ namespace NetworkControllerTests.IncomingMessages
             networkControllerMock.Setup(x => x.GetNodes_Internal()).Returns(new List<IExternalNodeInternal> {
                 alreadyKnownNodeMock.Object
             });
-            networkControllerMock.Setup(x => x.GetNodes()).Returns(new List<IExternalNode> {
+            networkControllerMock.Setup(x => x.Nodes).Returns(new List<IExternalNode> {
                 alreadyKnownNodeMock.Object
             });
         }

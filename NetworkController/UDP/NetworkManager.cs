@@ -21,6 +21,13 @@ namespace NetworkController.UDP
         private readonly ILogger _logger;
 
         private List<ExternalNode> _knownNodes = new List<ExternalNode>();
+        public IEnumerable<IExternalNode> Nodes
+        {
+            get
+            {
+                return _knownNodes.Cast<IExternalNode>();
+            }
+        }
 
         /// <summary>
         /// List of device ids that will be automatically rejected
@@ -184,11 +191,6 @@ namespace NetworkController.UDP
                     _persistentStorage.Save();
                 });
             }
-        }
-
-        public List<IExternalNode> GetNodes()
-        {
-            return _knownNodes.Cast<IExternalNode>().ToList();
         }
 
         public IEnumerable<IExternalNodeInternal> GetNodes_Internal()

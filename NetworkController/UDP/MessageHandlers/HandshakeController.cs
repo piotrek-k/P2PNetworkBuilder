@@ -20,7 +20,7 @@ namespace NetworkController.UDP.MessageHandlers
         {
             return new AdditionalInfo()
             {
-                KnownNodes = source.NetworkController.GetNodes()?
+                KnownNodes = source.NetworkController.Nodes?
                     .Where(x => x.CurrentState == ExternalNode.ConnectionState.Ready).Select(x => x.Id).ToList(),
                 ClaimedPrivateIPv4 = source.NetworkController.DeviceIPAddress.MapToIPv4().ToString(),
                 ClaimedPrivatePort = source.NetworkController.DevicePort
@@ -81,7 +81,7 @@ namespace NetworkController.UDP.MessageHandlers
                         continue;
                     }
 
-                    var foundNode = source.NetworkController.GetNodes().FirstOrDefault(x => x.Id == incomingNodeId);
+                    var foundNode = source.NetworkController.Nodes.FirstOrDefault(x => x.Id == incomingNodeId);
 
                     if (foundNode == null)
                     {
