@@ -158,6 +158,9 @@ namespace NetworkController.UDP
         public uint HighestReceivedSendingId { get; private set; }
 
         // Building states
+        /// <summary>
+        /// If true, nodes is waiting for ping in order to begin connection
+        /// </summary>
         public bool AfterHolePunchingResponse_WaitingForPingResponse { get; set; } = false;
 
         public const string SAMPLE_ENCRYPTION_VERIFICATION_TEXT = "This is test";

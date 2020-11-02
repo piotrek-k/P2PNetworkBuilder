@@ -68,6 +68,8 @@ namespace NetworkController.UDP.MessageHandlers
             {
                 var newNode = source.NetworkController.AddNode(data.DeviceId);
                 newNode.PublicEndpoint = new IPEndPoint(IPAddress.Parse(data.IPv4SeenExternally), data.PortSeenExternally);
+
+                node = newNode;
             }
 
             node.ClaimedPrivateEndpoint = new IPEndPoint(IPAddress.Parse(data.IPv4SeenInternally), data.PortSeenInternally);
@@ -75,9 +77,13 @@ namespace NetworkController.UDP.MessageHandlers
             _logger.LogTrace($"(HPR) received info about ${data.DeviceId}: " +
                 $"IP1: {new IPEndPoint(IPAddress.Parse(data.IPv4SeenExternally), data.PortSeenExternally)}, IP2: {node.ClaimedPrivateEndpoint}");
 
-
             node.CurrentState = ExternalNode.ConnectionState.Building;
-            node.AfterHolePunchingResponse_WaitingForPingResponse = true;
+
+            if (data.IsMasterNode)
+            {
+                // only one side should begin connection
+                node.AfterHolePunchingResponse_WaitingForPingResponse = true;
+            }
 
             if (node.PublicEndpoint == null || node.ClaimedPrivateEndpoint == null)
             {

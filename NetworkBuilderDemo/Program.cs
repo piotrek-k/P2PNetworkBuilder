@@ -20,7 +20,7 @@ namespace NetworkBuilderDemo
             // .\NetworkBuilderDemo.exe 13001 9e6f77c3-3b80-4c95-a547-44f96aca0044
 
             network = new NetworkManagerFactory()
-                .AddPersistentNodeStorage(new PlainTextFileNodeStorage("./keys.txt"))
+                //.AddPersistentNodeStorage(new PlainTextFileNodeStorage("./keys.txt"))
                 .Create();
 
             foreach (var a in args)
@@ -43,7 +43,7 @@ namespace NetworkBuilderDemo
                 network.DeviceId = parsedGuid;
             }
 
-            network.RestorePreviousSessionFromStorage();
+            //network.RestorePreviousSessionFromStorage();
 
             IPEndPoint parsedIP;
             if (args.Length >= 3 && IPEndPoint.TryParse(args[2], out parsedIP) && network.Nodes.Count() == 0)
@@ -89,6 +89,10 @@ namespace NetworkBuilderDemo
                         {
                             currentNode.RestartConnection();
                         }
+                    }
+                    else if(currentKey.Key == ConsoleKey.P)
+                    {
+                        ListRefresh();
                     }
                     else if (currentKey.Key == ConsoleKey.G)
                     {
