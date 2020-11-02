@@ -18,10 +18,10 @@ namespace NetworkController.UDP.MessageHandlers
         public void IncomingHolePunchingRequest(IExternalNodeInternal connectRequester, byte[] bytes)
         {
             HolePunchingRequest holePunchingRequest = HolePunchingRequest.Unpack(bytes);
-            IExternalNodeInternal nodeToWhichSourceWantToConnect = 
-                connectRequester.NetworkController.GetNodes_Internal().FirstOrDefault(x=>x.Id == holePunchingRequest.RequestedDeviceId);
+            IExternalNodeInternal nodeToWhichSourceWantToConnect =
+                connectRequester.NetworkController.GetNodes_Internal().FirstOrDefault(x => x.Id == holePunchingRequest.RequestedDeviceId);
 
-            if(nodeToWhichSourceWantToConnect == null)
+            if (nodeToWhichSourceWantToConnect == null)
             {
                 _logger.LogError("HPR: cannot arrange connection. No such node.");
                 return;
@@ -56,7 +56,7 @@ namespace NetworkController.UDP.MessageHandlers
         {
             HolePunchingResponse data = HolePunchingResponse.Unpack(bytes);
 
-            if(data.DeviceId == source.NetworkController.DeviceId)
+            if (data.DeviceId == source.NetworkController.DeviceId)
             {
                 _logger.LogError("(HolePunchingResponse) Trying to connect to myself. Rejecting response.");
                 return;
@@ -64,24 +64,25 @@ namespace NetworkController.UDP.MessageHandlers
 
             var node = source.NetworkController.GetNodes_Internal().FirstOrDefault(x => x.Id == data.DeviceId);
 
-            if(node == null)
+            if (node == null)
             {
-                //_logger.LogError(new EventId((int)LoggerEventIds.NodeNotFound), "Node not found");
                 var newNode = source.NetworkController.AddNode(data.DeviceId);
                 newNode.PublicEndpoint = new IPEndPoint(IPAddress.Parse(data.IPv4SeenExternally), data.PortSeenExternally);
-                newNode.ClaimedPrivateEndpoint = new IPEndPoint(IPAddress.Parse(data.IPv4SeenInternally), data.PortSeenInternally);
-
-                node = newNode;
-
-                _logger.LogTrace($"(HPR) received info about ${data.DeviceId}: IP1: {newNode.PublicEndpoint}, IP2: {newNode.ClaimedPrivateEndpoint}");
             }
+
+            node.ClaimedPrivateEndpoint = new IPEndPoint(IPAddress.Parse(data.IPv4SeenInternally), data.PortSeenInternally);
+
+            _logger.LogTrace($"(HPR) received info about ${data.DeviceId}: " +
+                $"IP1: {new IPEndPoint(IPAddress.Parse(data.IPv4SeenExternally), data.PortSeenExternally)}, IP2: {node.ClaimedPrivateEndpoint}");
+
 
             node.CurrentState = ExternalNode.ConnectionState.Building;
             node.AfterHolePunchingResponse_WaitingForPingResponse = true;
 
-            if(node.PublicEndpoint == null || node.ClaimedPrivateEndpoint == null)
+            if (node.PublicEndpoint == null || node.ClaimedPrivateEndpoint == null)
             {
-                _logger.LogError("Not enough data for holepunching");
+                _logger.LogError($"Not enough data for holepunching. Missing: {(node.PublicEndpoint == null ? "PublicEndpoint" : "")}" +
+                    $" {(node.ClaimedPrivateEndpoint == null ? "ClaimedPrivateEndpoint" : "")}");
             }
 
             node.SendPingSeries();
