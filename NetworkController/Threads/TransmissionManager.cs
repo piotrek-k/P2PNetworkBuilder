@@ -63,7 +63,7 @@ namespace NetworkController.Threads
             //retransmissionThread.Abort();
             // temporal solution
             GentleShutdown();
-            _logger.LogDebug("Transmission manager destroyed");
+            _logger.LogTrace("Transmission manager destroyed");
         }
 
         public override void SendFrameEnsureDelivered(DataFrame df, IPEndPoint destination, Action<AckStatus> callback = null)
@@ -156,7 +156,7 @@ namespace NetworkController.Threads
                 {
                     if (!firstTransmission)
                     {
-                        _logger.LogDebug($"{_externalNode.Id} Retransmission of {wm.DataFrame.RetransmissionId}");
+                        _logger.LogTrace($"{_externalNode.Id} Retransmission of {wm.DataFrame.RetransmissionId}");
                         failsCounter++;
                     }
                     firstTransmission = false;

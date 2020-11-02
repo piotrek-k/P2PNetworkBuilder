@@ -185,7 +185,7 @@ namespace NetworkController.UDP
 
                 newNode.RestoreSecurityKeys(n.Key, () =>
                 {
-                    _logger.LogError("========= KEY FAILURE");
+                    _logger.LogError("Restoring secuirity keys failed. You may need to manually set up connection again.");
 
                     _persistentStorage.Data.Remove(n);
                     _persistentStorage.Save();
@@ -202,7 +202,7 @@ namespace NetworkController.UDP
         {
             if (_knownNodes.Any(x => x.Id == id))
             {
-                _logger.LogError("Node already present");
+                _logger.LogError("Tried to add node that is already present");
                 return null;
             }
 

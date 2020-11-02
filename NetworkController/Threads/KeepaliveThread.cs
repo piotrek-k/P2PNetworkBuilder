@@ -109,7 +109,7 @@ namespace NetworkController.Threads
                     Thread.Sleep(TempWaitingTime);
                 }
 
-                _logger.LogDebug("Keepalive thread finished");
+                _logger.LogTrace("Keepalive thread finished");
                 _failedPingAttempts = 0;
             }).Start();
         }

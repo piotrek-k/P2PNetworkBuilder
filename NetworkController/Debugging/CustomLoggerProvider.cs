@@ -17,15 +17,17 @@ namespace NetworkController.Debugging
         public class CustomConsoleLogger : ILogger
         {
             private readonly string _categoryName;
+            private readonly LogLevel _minLevelToDisplay;
 
-            public CustomConsoleLogger(string categoryName)
+            public CustomConsoleLogger(string categoryName, LogLevel minLevelToDisplay=LogLevel.Trace)
             {
                 _categoryName = categoryName;
+                _minLevelToDisplay = minLevelToDisplay;
             }
 
             public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
             {
-                if (!IsEnabled(logLevel) || _categoryName.Contains("EntityFrameworkCore"))
+                if (!IsEnabled(logLevel))
                 {
                     return;
                 }
@@ -35,7 +37,7 @@ namespace NetworkController.Debugging
 
             public bool IsEnabled(LogLevel logLevel)
             {
-                return true;
+                return logLevel >= _minLevelToDisplay;
             }
 
             public IDisposable BeginScope<TState>(TState state)

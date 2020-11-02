@@ -271,7 +271,7 @@ namespace NetworkController.UDP
                 }
                 else
                 {
-                    _logger.LogError("Message didn't sent. Didn't know what to do at encryption step.");
+                    _logger.LogCritical("Message didn't sent. Didn't know what to do at encryption step.");
                     return;
                 }
             }
@@ -296,7 +296,7 @@ namespace NetworkController.UDP
             _tracker.AddNewEvent(new ConnectionEvents(PossibleEvents.OutgoingMessage, GetMessageName(type) + " transm. id: " + data.RetransmissionId));
             if (!MessageTypeGroups.IsKeepaliveNoLogicRelatedMessage(data.MessageType))
             {
-                _logger.LogDebug($"{Id} \t Outgoing: {GetMessageName(data.MessageType) + " transm. id: " + data.RetransmissionId}, payload {encryptedPaylaod?.Length}B ({payloadOfDataFrame?.Length}B unenc)");
+                _logger.LogTrace($"{Id} \t Outgoing: {GetMessageName(data.MessageType) + " transm. id: " + data.RetransmissionId}, payload {encryptedPaylaod?.Length}B ({payloadOfDataFrame?.Length}B unenc)");
             }
 
             if (ensureDelivered)
@@ -482,7 +482,7 @@ namespace NetworkController.UDP
                 if (decryptedPayload != null && decryptedPayload.Length != dataFrame.PayloadSize)
                 {
                     // encryption algorithms might leave zero paddings which have to be removed
-                    _logger.LogDebug("Payload size correction");
+                    _logger.LogTrace("Payload size correction");
                     decryptedPayload = decryptedPayload.Take(dataFrame.PayloadSize).ToArray();
                 }
 
@@ -665,7 +665,7 @@ namespace NetworkController.UDP
             {
                 CurrentState = ConnectionState.Ready;
                 _keepaliveThread.BeginKeepaliveThread();
-                _logger.LogDebug($"{Id} connection restored");
+                _logger.LogInformation($"{Id} connection restored");
             }
         }
 
@@ -689,7 +689,7 @@ namespace NetworkController.UDP
         public void ReportConnectionFailure()
         {
             if (CurrentState != ConnectionState.Failed)
-                _logger.LogError("Connection lost");
+                _logger.LogError($"Connection lost with {Id}");
             CurrentState = ConnectionState.Failed;
         }
 
@@ -722,7 +722,7 @@ namespace NetworkController.UDP
 
         public void ResetMessageCounter(uint newSendingId, uint newHighestReceivedId)
         {
-            _logger.LogInformation("Counter reset");
+            _logger.LogDebug("Counter reset");
             TransmissionManager.Destroy();
             if (!transmissionManagerWasPreset)
             {
