@@ -7,11 +7,18 @@ namespace NetworkController.Debugging
 {
     public class CustomLoggerProvider : ILoggerProvider
     {
+        private LogLevel _minLevelToDisplay;
+
+        public CustomLoggerProvider(LogLevel minLevelToDisplay = LogLevel.Trace)
+        {
+            _minLevelToDisplay = minLevelToDisplay;
+        }
+
         public void Dispose() { }
 
         public ILogger CreateLogger(string categoryName)
         {
-            return new CustomConsoleLogger(categoryName);
+            return new CustomConsoleLogger(categoryName, _minLevelToDisplay);
         }
 
         public class CustomConsoleLogger : ILogger
