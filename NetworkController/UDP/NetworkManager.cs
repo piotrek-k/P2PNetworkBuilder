@@ -328,7 +328,8 @@ namespace NetworkController.UDP
 
                 if (node != null)
                 {
-                    if (node.CurrentEndpoint == null || !node.CurrentEndpoint.Equals(senderIpEndPoint))
+                    if (node.CurrentEndpoint == null || 
+                        (!node.CurrentEndpoint.Equals(senderIpEndPoint) && node.CurrentState != ExternalNode.ConnectionState.Ready))
                     {
                         node.FillCurrentEndpoint(senderIpEndPoint);
                     }
