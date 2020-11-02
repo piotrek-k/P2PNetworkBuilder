@@ -73,7 +73,7 @@ namespace NetworkControllerTests.Mocks
             result.Setup(x => x.GetMessageTypes()).Returns(new List<Type>() { typeof(MessageType) });
 
             result.Setup(x => x.GetNodes_Internal()).Returns(ExternalNodesStorage.Select(x => x.Node));
-            result.Setup(x => x.GetNodes()).Returns(ExternalNodesStorage.Cast<IExternalNode>().ToList());
+            result.Setup(x => x.Nodes).Returns(ExternalNodesStorage.Cast<IExternalNode>().ToList());
 
             result.Setup(x => x.AddNode(It.IsAny<Guid>())).Returns((Guid guid) =>
             {

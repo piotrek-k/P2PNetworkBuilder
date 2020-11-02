@@ -46,7 +46,7 @@ namespace NetworkBuilderDemo
             network.RestorePreviousSessionFromStorage();
 
             IPEndPoint parsedIP;
-            if (args.Length >= 3 && IPEndPoint.TryParse(args[2], out parsedIP) && network.GetNodes().Count == 0)
+            if (args.Length >= 3 && IPEndPoint.TryParse(args[2], out parsedIP) && network.Nodes.Count() == 0)
             {
                 network.ConnectManually(parsedIP);
                 Console.WriteLine($"Connecting to {parsedIP}...");
@@ -75,8 +75,8 @@ namespace NetworkBuilderDemo
                     }
                     else if (currentKey.Key == ConsoleKey.N)
                     {
-                        currentNode = network.GetNodes().ToList()[counter];
-                        counter = counter % network.GetNodes().Count();
+                        currentNode = network.Nodes.ToList()[counter];
+                        counter = counter % network.Nodes.Count();
                         Console.WriteLine($"Set current node to {counter}: {currentNode.Id}");
                     }
                     else if (currentKey.Key == ConsoleKey.R)
@@ -152,7 +152,7 @@ namespace NetworkBuilderDemo
         {
             Console.WriteLine("Id \t State \t Address");
 
-            foreach (var n in network.GetNodes())
+            foreach (var n in network.Nodes)
             {
                 Console.WriteLine($"{n.Id} \t {Enum.GetName(typeof(ExternalNode.ConnectionState), n.CurrentState)} \t {n.CurrentEndpoint}");
             }
