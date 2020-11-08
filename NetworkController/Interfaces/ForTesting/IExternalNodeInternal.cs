@@ -18,7 +18,7 @@ namespace NetworkController.Interfaces.ForTesting
         SymmetricEncryptionService Ses { get; set; }
         INetworkControllerInternal NetworkController { get; set; }
 
-        IPEndPoint PublicEndpoint { get; }
+        IPEndPoint PublicEndpoint { get; set; }
         IPEndPoint ClaimedPrivateEndpoint { get; set; }
 
         void SendBytes(int type, byte[] payloadOfDataFrame, IPEndPoint endpoint, bool ensureDelivered);
@@ -38,5 +38,8 @@ namespace NetworkController.Interfaces.ForTesting
         void ResetMessageCounter(uint newSendingId, uint newHighestReceivedId);
 
         new bool IsHandshakeCompleted { get; set; }
+
+        void SetId(Guid newId);
+        void FillCurrentEndpoint(IPEndPoint proposedEndpoint);
     }
 }

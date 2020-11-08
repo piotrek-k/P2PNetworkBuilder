@@ -198,7 +198,7 @@ namespace NetworkController.UDP
             return _knownNodes.Cast<IExternalNodeInternal>();
         }
 
-        public ExternalNode AddNode(Guid id)
+        public IExternalNodeInternal AddNode(Guid id)
         {
             if (_knownNodes.Any(x => x.Id == id))
             {
@@ -306,7 +306,7 @@ namespace NetworkController.UDP
             else
             {
 
-                var node = _knownNodes.FirstOrDefault(x => x.Id == df.SourceNodeIdGuid);
+                IExternalNodeInternal node = _knownNodes.FirstOrDefault(x => x.Id == df.SourceNodeIdGuid);
 
                 if (node == null)
                 {

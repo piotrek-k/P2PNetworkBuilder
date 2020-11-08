@@ -1,6 +1,7 @@
 ﻿using ConnectionsManager.Debugging;
 using Microsoft.Extensions.Logging;
 using Moq;
+using NetworkController.Interfaces.ForTesting;
 using NetworkController.UDP;
 using NetworkControllerTests.Helper;
 using NetworkControllerTests.Mocks;
@@ -39,8 +40,8 @@ namespace NetworkControllerTests.Scenarios
             device2Mock.Setup(x => x.ConnectionResetRule).Returns((guid) => { return true; });
             var device2 = device2Mock.Object;
 
-            ExternalNode en1 = device2.AddNode(device1.DeviceId);
-            ExternalNode en2 = device1.AddNode(device2.DeviceId);
+            IExternalNodeInternal en1 = device2.AddNode(device1.DeviceId);
+            IExternalNodeInternal en2 = device1.AddNode(device2.DeviceId);
 
             /**
              * Act
@@ -75,8 +76,8 @@ namespace NetworkControllerTests.Scenarios
             device2Mock.Setup(x => x.ConnectionResetRule).Returns((guid) => { return false; });
             var device2 = device2Mock.Object;
 
-            ExternalNode en1 = device2.AddNode(device1.DeviceId);
-            ExternalNode en2 = device1.AddNode(device2.DeviceId);
+            IExternalNodeInternal en1 = device2.AddNode(device1.DeviceId);
+            IExternalNodeInternal en2 = device1.AddNode(device2.DeviceId);
 
             /**
              * Act

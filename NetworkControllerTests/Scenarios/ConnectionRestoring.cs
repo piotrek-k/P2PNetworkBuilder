@@ -4,6 +4,7 @@ using Moq;
 using NetworkController.DataTransferStructures;
 using NetworkController.DataTransferStructures.Other;
 using NetworkController.Encryption;
+using NetworkController.Interfaces.ForTesting;
 using NetworkController.Models;
 using NetworkController.UDP;
 using NetworkControllerTests.Helper;
@@ -41,9 +42,9 @@ namespace NetworkControllerTests.Scenarios
             var device2 = fnb.GenerateFullMockOfNetworkController(Guid.NewGuid()).Object;
 
             // Each side have different keys
-            ExternalNode en1 = device2.AddNode(device1.DeviceId);
+            IExternalNodeInternal en1 = device2.AddNode(device1.DeviceId);
             en1.Ses = new SymmetricEncryptionService();
-            ExternalNode en2 = device1.AddNode(device2.DeviceId);
+            IExternalNodeInternal en2 = device1.AddNode(device2.DeviceId);
             en2.Ses = new SymmetricEncryptionService();
 
             AckStatus? resultStatus = null;
@@ -89,9 +90,9 @@ namespace NetworkControllerTests.Scenarios
             var device2 = fnb.GenerateFullMockOfNetworkController(Guid.NewGuid()).Object;
 
             // Keys are the same
-            ExternalNode en1 = device2.AddNode(device1.DeviceId);
+            IExternalNodeInternal en1 = device2.AddNode(device1.DeviceId);
             en1.Ses = new SymmetricEncryptionService();
-            ExternalNode en2 = device1.AddNode(device2.DeviceId);
+            IExternalNodeInternal en2 = device1.AddNode(device2.DeviceId);
             en2.Ses = en1.Ses;
 
             AckStatus? resultStatus = null;
@@ -133,9 +134,9 @@ namespace NetworkControllerTests.Scenarios
             var validKeys = new SymmetricEncryptionService();
 
             // Each side have different keys
-            ExternalNode en1 = device2.AddNode(device1.DeviceId);
+            IExternalNodeInternal en1 = device2.AddNode(device1.DeviceId);
             en1.Ses = validKeys;
-            ExternalNode en2 = device1.AddNode(device2.DeviceId);
+            IExternalNodeInternal en2 = device1.AddNode(device2.DeviceId);
             en2.Ses = new SymmetricEncryptionService();
 
             bool response1Received = false;
