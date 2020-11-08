@@ -36,11 +36,11 @@ namespace NetworkController.Threads
             SetupIfNotWorking(startingValue);
         }
 
-        public override void SetupIfNotWorking(uint startingValue, IExternalNode node = null)
+        public override void SetupIfNotWorking(uint startingValue)
         {
             if (retransmissionThread == null)
             {
-                base.SetupIfNotWorking(startingValue, node);
+                base.SetupIfNotWorking(startingValue);
 
                 _cancelThreadSource = new CancellationTokenSource();
                 _cancelThread = _cancelThreadSource.Token;

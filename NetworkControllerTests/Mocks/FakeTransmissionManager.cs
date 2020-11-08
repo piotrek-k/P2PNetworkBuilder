@@ -77,9 +77,9 @@ namespace NetworkControllerTests.Mocks
             base.SendFrameEnsureDelivered(df, destination, callback);
         }
 
-        public override void SetupIfNotWorking(uint startingValue, IExternalNode node = null)
+        public override void SetupIfNotWorking(uint startingValue)
         {
-            base.SetupIfNotWorking(startingValue, node);
+            base.SetupIfNotWorking(startingValue);
         }
 
         public bool ProcessNextMessage(WaitingMessage waitingMessage, Action<AckStatus> callback)

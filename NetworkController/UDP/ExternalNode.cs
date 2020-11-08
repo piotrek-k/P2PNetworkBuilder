@@ -731,7 +731,7 @@ namespace NetworkController.UDP
             {
                 TransmissionManager = new TransmissionManager(NetworkController, this, _logger);
             }
-            TransmissionManager.SetupIfNotWorking(newSendingId, this);
+            TransmissionManager.SetupIfNotWorking(newSendingId);
             HighestReceivedSendingId = newHighestReceivedId;
         }
 

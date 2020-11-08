@@ -102,7 +102,7 @@ namespace NetworkController.Threads
             _dataframeQueue.Enqueue((waitingMessage, callback));
         }
 
-        public virtual void SetupIfNotWorking(uint startingValue, IExternalNode node = null)
+        public virtual void SetupIfNotWorking(uint startingValue)
         {
             allSentMessagesCounter = startingValue;
             currentSendingId = startingValue;
