@@ -535,7 +535,7 @@ namespace NetworkController.UDP
                         SendBytes((int)MessageType.AdditionalInfo, ai.PackToBytes());
                     });
 
-                    //return;
+                    return;
                 }
 
                 if (dataFrame.MessageType == (int)MessageType.Shutdown)
