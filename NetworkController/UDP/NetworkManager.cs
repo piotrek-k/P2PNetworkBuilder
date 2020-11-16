@@ -210,7 +210,7 @@ namespace NetworkController.UDP
 
             ExternalNode en = new ExternalNode(id, this, _logger, connTracker);
             _knownNodes.Add(en);
-            _logger.LogDebug($"New node added. Number of external nodes: {_knownNodes.Count}");
+            _logger.LogInformation($"New node added. Number of external nodes: {_knownNodes.Count}");
 
             OnNodeAddedEvent(null);
 
@@ -251,7 +251,7 @@ namespace NetworkController.UDP
             {
                 en = new ExternalNode(endpoint, this, _logger, connTracker);
                 _knownNodes.Add(en);
-                _logger.LogDebug("Created new ExternalNode");
+                _logger.LogInformation($"New node added. Number of external nodes: {_knownNodes.Count}");
 
                 OnNodeAddedEvent(null);
             }

@@ -18,6 +18,7 @@ namespace NetworkController.Helpers
         {
             switch (messageType)
             {
+                case (int)MessageType.ReceiveAcknowledge:
                 case (int)MessageType.PublicKey:
                 case (int)MessageType.PrivateKey:
                 case (int)MessageType.AdditionalInfo:
