@@ -11,7 +11,7 @@ namespace TransmissionComponent
         /// Executes when new message is ready to be processed.
         /// Some messages will appear as soon as they arrive, some are stopped until their turn
         /// </summary>
-        //public event EventHandler<IncomingDataEventArgs> NewIncomingMessage;
+        public event EventHandler<NewMessageEventArgs> NewIncomingMessage;
 
         public void SendMessageSequentially(IPEndPoint endPoint, int messageType, byte[] payload, Guid source, byte[] encryptionSeed, Action<AckStatus> callback = null);
         //public void SendMessageOnlyEnsureDelivered();

@@ -1,6 +1,9 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using TransmissionComponent.Structures;
@@ -10,22 +13,76 @@ namespace TransmissionComponent
 {
     public class ExtendedUdpClient : ITransmissionHandler
     {
-        IUdpClient udpClient;
+        private IUdpClient udpClient;
+        private ILogger _logger;
+
+        public uint WaitingTimeBetweenRetransmissions { get; set; } = 2000;
 
         public Dictionary<uint, TrackedMessage> TrackedMessages { get; private set; } = new Dictionary<uint, TrackedMessage>();
         private object trackedMessagesLock = new object();
 
         public uint NextSentMessageId = 0;
-        public uint WaitingTimeBetweenRetransmissions { get; set; } = 2000;
+        
+        public Dictionary<Guid, KnownSource> KnownSources = new Dictionary<Guid, KnownSource>();
 
-        public ExtendedUdpClient()
+        public event EventHandler<NewMessageEventArgs> NewIncomingMessage;
+        public virtual void OnNewMessageReceived(NewMessageEventArgs e)
         {
-            udpClient = new UdpClientAdapter();
+            EventHandler<NewMessageEventArgs> handler = NewIncomingMessage;
+            handler?.Invoke(this, e);
         }
 
-        public ExtendedUdpClient(IUdpClient udpClientInstance) : this()
+        public ExtendedUdpClient(ILogger logger)
+        {
+            udpClient = null;
+            _logger = logger;
+        }
+
+        public ExtendedUdpClient(IUdpClient udpClientInstance, ILogger logger) : this(logger)
         {
             udpClient = udpClientInstance;
+        }
+
+        public void StartListening(int port = 13000)
+        {
+            udpClient = new UdpClientAdapter(port);
+
+            // Related to closing "UDP connection" issue
+            const int SIO_UDP_CONNRESET = -1744830452;
+            try
+            {
+                udpClient.Client.IOControl(
+                    (IOControlCode)SIO_UDP_CONNRESET,
+                    new byte[] { 0, 0, 0, 0 },
+                    null
+                );
+            }
+            catch (Exception)
+            {
+                _logger.LogTrace("Couldn't set IOControl. Ignore if not working on Windows");
+            }
+
+            udpClient.BeginReceive(new AsyncCallback(HandleIncomingMessages), null);
+        }
+
+        public void HandleIncomingMessages(IAsyncResult ar)
+        {
+            IPEndPoint senderIpEndPoint = new IPEndPoint(0, 0);
+            var receivedData = udpClient.EndReceive(ar, ref senderIpEndPoint);
+            DataFrame df = DataFrame.Unpack(receivedData);
+
+            KnownSource foundSource = null;
+            KnownSources.TryGetValue(df.SourceNodeIdGuid, out foundSource);
+
+            if (foundSource == null)
+            {
+                foundSource = new KnownSource(this);
+                KnownSources.Add(df.SourceNodeIdGuid, foundSource);
+            }
+            else
+            {
+                foundSource.HandleNewMessage(senderIpEndPoint, df);
+            }
         }
 
         public void SendMessageSequentially(IPEndPoint endPoint, int messageType, byte[] payload, Guid source, byte[] encryptionSeed, Action<AckStatus> callback = null)

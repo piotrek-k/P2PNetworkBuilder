@@ -1,22 +1,32 @@
+using Microsoft.Extensions.Logging;
 using Moq;
 using System;
 using System.Linq;
 using System.Net;
 using TransmissionComponent;
+using TransmissionComponent.Others;
 using TransmissionComponent.Structures;
 using TransmissionComponent.Structures.Other;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace TransmissionComponentTests
 {
     public class ExtendedUdpClientTests
     {
+        private ILogger _logger;
+
+        public ExtendedUdpClientTests(ITestOutputHelper output)
+        {
+            _logger = new LogToOutput(output, "logger").CreateLogger("category");
+        }
+
         [Fact]
         public void SendMessageSequentiallyShould_PackMessage_PassItToUdpClient_StartTracking()
         {
             // Arrange
             Mock<IUdpClient> udpClientMock = new Mock<IUdpClient>();
-            ExtendedUdpClient extendedUdpClient = new ExtendedUdpClient(udpClientMock.Object);
+            ExtendedUdpClient extendedUdpClient = new ExtendedUdpClient(udpClientMock.Object, _logger);
             Action<AckStatus> callback = (status) => { };
 
             byte[] receivedData = null;
@@ -56,7 +66,7 @@ namespace TransmissionComponentTests
         {
             // Arrange
             Mock<IUdpClient> udpClientMock = new Mock<IUdpClient>();
-            ExtendedUdpClient extendedUdpClient = new ExtendedUdpClient(udpClientMock.Object);
+            ExtendedUdpClient extendedUdpClient = new ExtendedUdpClient(udpClientMock.Object, _logger);
 
             IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000);
             extendedUdpClient.WaitingTimeBetweenRetransmissions = 0; // waiting time to zero
@@ -83,6 +93,38 @@ namespace TransmissionComponentTests
             udpClientMock
                    .Verify(x => x.Send(It.IsAny<byte[]>(), It.IsAny<int>(), It.Is<IPEndPoint>(x => x == endpoint)),
                        Times.Exactly(initalLoop));
+        }
+
+        [Fact]
+        public void HandleIncomingMessagesShould_CreateNewSourceWhenUnknown()
+        {
+            // Arrange
+            Mock<IUdpClient> udpClientMock = new Mock<IUdpClient>();
+            ExtendedUdpClient extendedUdpClient = new ExtendedUdpClient(udpClientMock.Object, _logger);
+
+            uint testedMessageId = 1;
+            Guid sourceId = Guid.NewGuid();
+
+            udpClientMock.Setup(x => x.EndReceive(It.IsAny<IAsyncResult>(), ref It.Ref<IPEndPoint>.IsAny))
+                .Returns(() =>
+                {
+                    return new DataFrame()
+                    {
+                        SourceNodeIdGuid = sourceId,
+                        RetransmissionId = testedMessageId
+                    }.PackToBytes();
+                });
+
+            int previousKnownSourceCount = extendedUdpClient.KnownSources.Count();
+
+            // Act
+            extendedUdpClient.HandleIncomingMessages(null);
+            extendedUdpClient.HandleIncomingMessages(null);
+
+            // called twice, should be added once
+
+            // Assert
+            Assert.True(extendedUdpClient.KnownSources.Count() == previousKnownSourceCount + 1);
         }
     }
 }
