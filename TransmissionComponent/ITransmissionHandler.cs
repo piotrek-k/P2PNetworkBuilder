@@ -13,7 +13,7 @@ namespace TransmissionComponent
         /// </summary>
         //public event EventHandler<IncomingDataEventArgs> NewIncomingMessage;
 
-        public void SendMessageSequentially(IPEndPoint endPoint, int messageType, byte[] payload, Action<AckStatus> callback = null);
+        public void SendMessageSequentially(IPEndPoint endPoint, int messageType, byte[] payload, Guid source, byte[] encryptionSeed, Action<AckStatus> callback = null);
         //public void SendMessageOnlyEnsureDelivered();
         //public void SendMessageAsDatagram();
     }
