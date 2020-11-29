@@ -1,6 +1,5 @@
-﻿using NetworkController.DataTransferStructures;
-using NetworkController.DataTransferStructures.Packers;
-using System;
+﻿using System;
+using TransmissionComponent.Structures.Packers;
 
 namespace TransmissionComponent.Structures
 {

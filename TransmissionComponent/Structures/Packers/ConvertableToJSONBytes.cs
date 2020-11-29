@@ -1,6 +1,5 @@
 ﻿using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.Text;
 
 namespace TransmissionComponent.Structures.Packers
@@ -10,7 +9,7 @@ namespace TransmissionComponent.Structures.Packers
     {
         public byte[] PackToBytes()
         {
-            string asString = Newtonsoft.Json.JsonConvert.SerializeObject(this);
+            string asString = JsonConvert.SerializeObject(this);
             byte[] asBytes = Encoding.UTF8.GetBytes(asString);
             return asBytes;
         }

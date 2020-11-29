@@ -11,7 +11,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetworkControllerTests", "N
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetworkBuilderServer", "NetworkBuilderServer\NetworkBuilderServer.csproj", "{B84EC06E-E87C-48D7-ACBF-9F2DAAE33043}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TransmissionComponent", "TransmissionComponent\TransmissionComponent.csproj", "{1C34BEA3-5DF2-405D-B39A-2B47C79E107E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TransmissionComponent", "TransmissionComponent\TransmissionComponent.csproj", "{1C34BEA3-5DF2-405D-B39A-2B47C79E107E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TransmissionComponentTests", "TransmissionComponentTests\TransmissionComponentTests.csproj", "{4C04A90B-6463-4C36-AB95-0D9861EA16CF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,6 +41,10 @@ Global
 		{1C34BEA3-5DF2-405D-B39A-2B47C79E107E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1C34BEA3-5DF2-405D-B39A-2B47C79E107E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1C34BEA3-5DF2-405D-B39A-2B47C79E107E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4C04A90B-6463-4C36-AB95-0D9861EA16CF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4C04A90B-6463-4C36-AB95-0D9861EA16CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4C04A90B-6463-4C36-AB95-0D9861EA16CF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4C04A90B-6463-4C36-AB95-0D9861EA16CF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

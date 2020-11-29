@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Reflection;
-using NetworkController.DataTransferStructures.Packers;
 using System.Linq;
 
 namespace TransmissionComponent.Structures.Packers
