@@ -66,6 +66,19 @@ namespace TransmissionComponent.Structures
             }
         }
 
+        const int ResetCounterFlagPosition = 2;
+        public bool ResetCounter
+        {
+            get
+            {
+                return (Flags & (1 << ResetCounterFlagPosition)) > 0;
+            }
+            set
+            {
+                Flags = SetBitToBoolValue(Flags, ResetCounterFlagPosition, value);
+            }
+        }
+
         /// <summary>
         /// Initialization vector for encryption
         /// </summary>

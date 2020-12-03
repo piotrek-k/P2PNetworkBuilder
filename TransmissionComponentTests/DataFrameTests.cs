@@ -18,6 +18,7 @@ namespace TransmissionComponentTests
             df.SourceNodeIdGuid = new Guid();
             df.Payload = new byte[] { 1, 2, 3 };
             df.ExpectAcknowledge = true;
+            df.ResetCounter = true;
             df.MessageType = 15;
             df.IV = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
             df.RetransmissionId = 50;
@@ -31,6 +32,7 @@ namespace TransmissionComponentTests
             Assert.Equal(df.Payload, receivedFrame.Payload);
             Assert.Equal(df.MessageType, receivedFrame.MessageType);
             Assert.Equal(df.ExpectAcknowledge, receivedFrame.ExpectAcknowledge);
+            Assert.Equal(df.ResetCounter, receivedFrame.ResetCounter);
             Assert.Equal(df.IV, receivedFrame.IV);
             Assert.Equal(df.RetransmissionId, receivedFrame.RetransmissionId);
         }
@@ -41,22 +43,26 @@ namespace TransmissionComponentTests
             DataFrame df = new DataFrame();
             df.ExpectAcknowledge = true;
             df.SendSequentially = true;
+            df.ResetCounter = true;
 
             byte[] bytesToTransmit = df.PackToBytes();
             DataFrame receivedFrame = DataFrame.Unpack(bytesToTransmit);
 
             Assert.True(receivedFrame.ExpectAcknowledge);
             Assert.True(receivedFrame.SendSequentially);
+            Assert.True(receivedFrame.ResetCounter);
 
             df = new DataFrame();
             df.ExpectAcknowledge = false;
             df.SendSequentially = false;
+            df.ResetCounter = false;
 
             bytesToTransmit = df.PackToBytes();
             receivedFrame = DataFrame.Unpack(bytesToTransmit);
 
             Assert.False(receivedFrame.ExpectAcknowledge);
             Assert.False(receivedFrame.SendSequentially);
+            Assert.False(receivedFrame.ResetCounter);
         }
 
         [Fact]
