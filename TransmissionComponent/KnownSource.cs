@@ -35,9 +35,7 @@ namespace TransmissionComponent
                         DataFrame = df
                     });
 
-                    NextExpectedIncomingMessageId += 1;
-
-                    SequentiallyProcessNextWaitingMessages();
+                    SetCounterToNextValue();
                 }
                 else if (df.RetransmissionId > NextExpectedIncomingMessageId)
                 {
@@ -48,7 +46,8 @@ namespace TransmissionComponent
                     });
                 }
             }
-            else if (df.RetransmissionId >= NextExpectedIncomingMessageId)
+            else if (df.RetransmissionId >= NextExpectedIncomingMessageId
+                && !ProcessedMessages.Contains(df.RetransmissionId))
             {
                 _euc.OnNewMessageReceived(new NewMessageEventArgs
                 {
@@ -57,7 +56,7 @@ namespace TransmissionComponent
 
                 if (df.RetransmissionId == NextExpectedIncomingMessageId)
                 {
-                    NextExpectedIncomingMessageId += 1;
+                    SetCounterToNextValue();
                 }
                 else
                 {
@@ -66,19 +65,41 @@ namespace TransmissionComponent
             }
         }
 
+        private void SetCounterToNextValue()
+        {
+            NextExpectedIncomingMessageId += 1;
+
+            SequentiallyProcessNextWaitingMessages();
+        }
+
         private void SequentiallyProcessNextWaitingMessages()
         {
             WaitingMessage wm;
-
-            while ((wm = WaitingMessages.GetValueOrDefault(NextExpectedIncomingMessageId)) != null)
+            bool shouldContinue;
+            do
             {
-                _euc.OnNewMessageReceived(new NewMessageEventArgs
-                {
-                    DataFrame = wm.DataFrame
-                });
+                shouldContinue = false;
+                wm = WaitingMessages.GetValueOrDefault(NextExpectedIncomingMessageId);
 
-                NextExpectedIncomingMessageId += 1;
-            }
+                if (wm != null)
+                {
+                    _euc.OnNewMessageReceived(new NewMessageEventArgs
+                    {
+                        DataFrame = wm.DataFrame
+                    });
+
+                    NextExpectedIncomingMessageId += 1;
+
+                    shouldContinue = true;
+                }
+                else if (ProcessedMessages.Contains(NextExpectedIncomingMessageId))
+                {
+                    ProcessedMessages.Remove(NextExpectedIncomingMessageId);
+                    NextExpectedIncomingMessageId++;
+                    shouldContinue = true;
+                }
+
+            } while (shouldContinue);
         }
     }
 }
