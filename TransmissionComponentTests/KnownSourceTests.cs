@@ -73,5 +73,44 @@ namespace TransmissionComponentTests
             udpClientMock.Verify(x => x.OnNewMessageReceived(It.IsAny<NewMessageEventArgs>()), Times.Never);
             Assert.True(knownSource.WaitingMessages.Count() == 1);
         }
+
+        [Fact]
+        public void HandleNewMessageShould_ImmadiatelyProcessWaitingMessagesIfItsTheirTurn()
+        {
+            // Arrange
+            Mock<ExtendedUdpClient> udpClientMock = new Mock<ExtendedUdpClient>(_logger);
+            KnownSource knownSource = new KnownSource(udpClientMock.Object);
+            IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000);
+
+            DataFrame df_that_came_too_fast_1 = new DataFrame()
+            {
+                RetransmissionId = 3
+            };
+
+            DataFrame df_that_came_too_fast_2 = new DataFrame()
+            {
+                RetransmissionId = 2
+            };
+
+            DataFrame df_to_process_first = new DataFrame()
+            {
+                RetransmissionId = 1
+            };
+
+            // Act 
+
+            knownSource.HandleNewMessage(endpoint, df_that_came_too_fast_1);
+            knownSource.HandleNewMessage(endpoint, df_that_came_too_fast_2);
+
+            // At this point nothing should be processed
+            udpClientMock.Verify(x => x.OnNewMessageReceived(It.IsAny<NewMessageEventArgs>()), Times.Never);
+
+            knownSource.HandleNewMessage(endpoint, df_to_process_first);
+
+            // Assert
+            udpClientMock.Verify(x => x.OnNewMessageReceived(It.Is<NewMessageEventArgs>(x => x.DataFrame.RetransmissionId == 1)), Times.Once);
+            udpClientMock.Verify(x => x.OnNewMessageReceived(It.Is<NewMessageEventArgs>(x => x.DataFrame.RetransmissionId == 2)), Times.Once);
+            udpClientMock.Verify(x => x.OnNewMessageReceived(It.Is<NewMessageEventArgs>(x => x.DataFrame.RetransmissionId == 3)), Times.Once);
+        }
     }
 }

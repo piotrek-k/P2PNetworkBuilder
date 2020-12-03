@@ -31,6 +31,10 @@ namespace TransmissionComponent
                 {
                     DataFrame = df
                 });
+
+                NextExpectedIncomingMessageId += 1;
+
+                SequentiallyProcessNextWaitingMessages();
             }
             else
             {
@@ -39,6 +43,21 @@ namespace TransmissionComponent
                     DataFrame = df,
                     Sender = senderIpEndPoint
                 });
+            }
+        }
+
+        private void SequentiallyProcessNextWaitingMessages()
+        {
+            WaitingMessage wm;
+
+            while ((wm = WaitingMessages.GetValueOrDefault(NextExpectedIncomingMessageId)) != null)
+            {
+                _euc.OnNewMessageReceived(new NewMessageEventArgs
+                {
+                    DataFrame = wm.DataFrame
+                });
+
+                NextExpectedIncomingMessageId += 1;
             }
         }
     }
