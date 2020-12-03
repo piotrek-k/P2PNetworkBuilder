@@ -62,6 +62,10 @@ namespace TransmissionComponent.Structures.Packers
                     {
                         valueAsBytes = (byte[])value;
                     }
+                    else if(p.PropertyType == typeof(byte))
+                    {
+                        valueAsBytes = new byte[1] { (byte)value };
+                    }
                     else
                     {
                         dynamic castedValue = Convert.ChangeType(value, p.PropertyType);
@@ -164,6 +168,10 @@ namespace TransmissionComponent.Structures.Packers
                                 encodedData.Skip(startIndex).Take(o.fixedSize.SizeInBytes).ToArray());
                         }
                     }
+                }
+                else if(o.prop.PropertyType == typeof(byte))
+                {
+                    o.prop.SetValue(result, encodedData[startIndex]);
                 }
                 else
                 {

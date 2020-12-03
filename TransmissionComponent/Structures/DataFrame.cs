@@ -38,7 +38,33 @@ namespace TransmissionComponent.Structures
 
         [ValueToPack(4)]
         [FixedSize(1)]
-        public bool ExpectAcknowledge { get; set; }
+        public byte Flags { get; set; }
+
+        const ushort ExpAckBitwisePosition = 0;
+        public bool ExpectAcknowledge
+        {
+            get
+            {
+                return (Flags & (1 << ExpAckBitwisePosition)) > 0;
+            }
+            set
+            {
+                Flags = SetBitToBoolValue(Flags, ExpAckBitwisePosition, value);
+            }
+        }
+
+        const int SendSeqBitwisePosition = 1;
+        public bool SendSequentially
+        {
+            get
+            {
+                return (Flags & (1 << SendSeqBitwisePosition)) > 0;
+            }
+            set
+            {
+                Flags = SetBitToBoolValue(Flags, SendSeqBitwisePosition, value);
+            }
+        }
 
         /// <summary>
         /// Initialization vector for encryption
@@ -57,5 +83,30 @@ namespace TransmissionComponent.Structures
         /// </summary>
         [ValueToPack(7)]
         public byte[] Payload { get; set; }
+
+
+        /*
+         * Flags helpers
+         */
+
+        public static byte SetBitToBoolValue(byte value, int position, bool boolValue)
+        {
+            if (boolValue)
+                return SetBitTo1(value, position);
+            else
+                return SetBitTo0(value, position);
+        }
+
+        public static byte SetBitTo1(byte value, int position)
+        {
+            // Set a bit at position to 1.
+            return value |= (byte)(1 << position);
+        }
+
+        public static byte SetBitTo0(byte value, int position)
+        {
+            // Set a bit at position to 0.
+            return (byte)(value & (~(1 << position)));
+        }
     }
 }
