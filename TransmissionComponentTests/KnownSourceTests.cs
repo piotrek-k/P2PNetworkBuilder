@@ -112,5 +112,27 @@ namespace TransmissionComponentTests
             udpClientMock.Verify(x => x.OnNewMessageReceived(It.Is<NewMessageEventArgs>(x => x.DataFrame.RetransmissionId == 2)), Times.Once);
             udpClientMock.Verify(x => x.OnNewMessageReceived(It.Is<NewMessageEventArgs>(x => x.DataFrame.RetransmissionId == 3)), Times.Once);
         }
+
+        [Fact]
+        public void HandleNewMessagesShould_PreventProcessingSameMessageMoreThanOnce()
+        {
+            // Arrange
+            Mock<ExtendedUdpClient> udpClientMock = new Mock<ExtendedUdpClient>(_logger);
+            KnownSource knownSource = new KnownSource(udpClientMock.Object);
+            IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000);
+
+            DataFrame message = new DataFrame()
+            {
+                RetransmissionId = 1
+            };
+
+            // Act
+            knownSource.HandleNewMessage(endpoint, message);
+            knownSource.HandleNewMessage(endpoint, message);
+            knownSource.HandleNewMessage(endpoint, message);
+
+            // Assert
+            udpClientMock.Verify(x => x.OnNewMessageReceived(It.IsAny<NewMessageEventArgs>()), Times.Once);
+        }
     }
 }

@@ -36,7 +36,7 @@ namespace TransmissionComponent
 
                 SequentiallyProcessNextWaitingMessages();
             }
-            else
+            else if(df.RetransmissionId > NextExpectedIncomingMessageId)
             {
                 WaitingMessages.Add(df.RetransmissionId, new WaitingMessage
                 {
