@@ -140,5 +140,39 @@ namespace TransmissionComponentTests
             // Assert
             udpClientMock.Verify(x => x.OnNewMessageReceived(It.IsAny<NewMessageEventArgs>()), Times.Once);
         }
+
+        [Fact]
+        public void HandleNewMessagesShould_HandleMixedSequentialAndNonsequentialMessages()
+        {
+            // Arrange
+            Mock<ExtendedUdpClient> udpClientMock = new Mock<ExtendedUdpClient>(_logger);
+            KnownSource knownSource = new KnownSource(udpClientMock.Object);
+            IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000);
+
+            // Act
+            knownSource.HandleNewMessage(endpoint, new DataFrame()
+            {
+                RetransmissionId = 4,
+                SendSequentially = true
+            });
+            knownSource.HandleNewMessage(endpoint, new DataFrame()
+            {
+                RetransmissionId = 2,
+                SendSequentially = false
+            });
+            knownSource.HandleNewMessage(endpoint, new DataFrame()
+            {
+                RetransmissionId = 3,
+                SendSequentially = false
+            });
+            knownSource.HandleNewMessage(endpoint, new DataFrame()
+            {
+                RetransmissionId = 1,
+                SendSequentially = true
+            });
+
+            // Assert
+            udpClientMock.Verify(x => x.OnNewMessageReceived(It.IsAny<NewMessageEventArgs>()), Times.Exactly(4));
+        }
     }
 }
