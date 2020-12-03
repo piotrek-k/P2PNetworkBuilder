@@ -13,11 +13,11 @@ using Xunit.Abstractions;
 
 namespace TransmissionComponentTests
 {
-    public class KnownSourceTests
+    public class KnownSourceTests_ForSequentialMessages
     {
         private ILogger _logger;
 
-        public KnownSourceTests(ITestOutputHelper output)
+        public KnownSourceTests_ForSequentialMessages(ITestOutputHelper output)
         {
             _logger = new LogToOutput(output, "logger").CreateLogger("category");
         }
@@ -37,7 +37,8 @@ namespace TransmissionComponentTests
             DataFrame df = new DataFrame()
             {
                 SourceNodeIdGuid = sourceId,
-                RetransmissionId = testedMessageId
+                RetransmissionId = testedMessageId,
+                SendSequentially = true
             };
 
             // Act
@@ -63,7 +64,8 @@ namespace TransmissionComponentTests
             DataFrame df = new DataFrame()
             {
                 SourceNodeIdGuid = sourceId,
-                RetransmissionId = testedMessageId
+                RetransmissionId = testedMessageId,
+                SendSequentially = true
             };
 
             // Act
@@ -84,17 +86,20 @@ namespace TransmissionComponentTests
 
             DataFrame df_that_came_too_fast_1 = new DataFrame()
             {
-                RetransmissionId = 3
+                RetransmissionId = 3,
+                SendSequentially = true
             };
 
             DataFrame df_that_came_too_fast_2 = new DataFrame()
             {
-                RetransmissionId = 2
+                RetransmissionId = 2,
+                SendSequentially = true
             };
 
             DataFrame df_to_process_first = new DataFrame()
             {
-                RetransmissionId = 1
+                RetransmissionId = 1,
+                SendSequentially = true
             };
 
             // Act 
@@ -123,7 +128,8 @@ namespace TransmissionComponentTests
 
             DataFrame message = new DataFrame()
             {
-                RetransmissionId = 1
+                RetransmissionId = 1,
+                SendSequentially = true
             };
 
             // Act
