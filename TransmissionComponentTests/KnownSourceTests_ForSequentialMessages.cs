@@ -149,6 +149,12 @@ namespace TransmissionComponentTests
             KnownSource knownSource = new KnownSource(udpClientMock.Object);
             IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000);
 
+            List<uint> sequenceTracker = new List<uint>();
+            udpClientMock.Setup(x => x.OnNewMessageReceived(It.IsAny<NewMessageEventArgs>())).Callback<NewMessageEventArgs>((evArg) =>
+            {
+                sequenceTracker.Add(evArg.DataFrame.RetransmissionId);
+            });
+
             // Act
             knownSource.HandleNewMessage(endpoint, new DataFrame()
             {
@@ -170,9 +176,15 @@ namespace TransmissionComponentTests
                 RetransmissionId = 1,
                 SendSequentially = true
             });
+            knownSource.HandleNewMessage(endpoint, new DataFrame()
+            {
+                RetransmissionId = 5,
+                SendSequentially = true
+            });
 
             // Assert
-            udpClientMock.Verify(x => x.OnNewMessageReceived(It.IsAny<NewMessageEventArgs>()), Times.Exactly(4));
+            udpClientMock.Verify(x => x.OnNewMessageReceived(It.IsAny<NewMessageEventArgs>()), Times.Exactly(5));
+            Assert.Equal(new List<uint> { 2, 3, 1, 4, 5 }, sequenceTracker);
         }
     }
 }
