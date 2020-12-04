@@ -66,16 +66,16 @@ namespace TransmissionComponent.Structures
             }
         }
 
-        const int ResetCounterFlagPosition = 2;
-        public bool ResetCounter
+        const int ReceiveAckPosition = 2;
+        public bool ReceiveAck
         {
             get
             {
-                return (Flags & (1 << ResetCounterFlagPosition)) > 0;
+                return (Flags & (1 << ReceiveAckPosition)) > 0;
             }
             set
             {
-                Flags = SetBitToBoolValue(Flags, ResetCounterFlagPosition, value);
+                Flags = SetBitToBoolValue(Flags, ReceiveAckPosition, value);
             }
         }
 

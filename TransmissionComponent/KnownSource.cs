@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Net;
 using TransmissionComponent.Structures;
+using TransmissionComponent.Structures.Other;
 
 namespace TransmissionComponent
 {
@@ -9,6 +10,7 @@ namespace TransmissionComponent
     {
         public int NextExpectedIncomingMessageId = 1;
         private ExtendedUdpClient _euc;
+        private Guid _deviceId;
 
         public class WaitingMessage
         {
@@ -19,9 +21,10 @@ namespace TransmissionComponent
         public SortedList<int, WaitingMessage> WaitingMessages { get; private set; } = new SortedList<int, WaitingMessage>();
         public HashSet<int> ProcessedMessages { get; private set; } = new HashSet<int>();
 
-        public KnownSource(ExtendedUdpClient euc)
+        public KnownSource(ExtendedUdpClient euc, Guid deviceId)
         {
             _euc = euc;
+            _deviceId = deviceId;
         }
 
         public void HandleNewMessage(IPEndPoint senderIpEndPoint, DataFrame df)
@@ -30,10 +33,7 @@ namespace TransmissionComponent
             {
                 if (df.RetransmissionId == NextExpectedIncomingMessageId)
                 {
-                    _euc.OnNewMessageReceived(new NewMessageEventArgs
-                    {
-                        DataFrame = df
-                    });
+                    ProcessMessage(df, senderIpEndPoint);
 
                     SetCounterToNextValue();
                 }
@@ -54,10 +54,7 @@ namespace TransmissionComponent
                 )
                 && !ProcessedMessages.Contains(df.RetransmissionId))
             {
-                _euc.OnNewMessageReceived(new NewMessageEventArgs
-                {
-                    DataFrame = df
-                });
+                ProcessMessage(df, senderIpEndPoint);
 
                 if (df.RetransmissionId == NextExpectedIncomingMessageId)
                 {
@@ -68,6 +65,21 @@ namespace TransmissionComponent
                     ProcessedMessages.Add(df.RetransmissionId);
                 }
             }
+        }
+
+        private void ProcessMessage(DataFrame df, IPEndPoint callbackEndpoint)
+        {
+            AckStatus result = _euc.OnNewMessageReceived(new NewMessageEventArgs
+            {
+                DataFrame = df
+            });
+
+            var ra = new ReceiveAcknowledge()
+            {
+                Status = (int)result
+            }.PackToBytes();
+
+            _euc.SendReceiveAck(callbackEndpoint, ra, _deviceId, df.RetransmissionId);
         }
 
         private void SetCounterToNextValue()
@@ -112,19 +124,18 @@ namespace TransmissionComponent
 
                 if (wm != null)
                 {
-                    _euc.OnNewMessageReceived(new NewMessageEventArgs
-                    {
-                        DataFrame = wm.DataFrame
-                    });
+                    ProcessMessage(wm.DataFrame, wm.Sender);
 
-                    NextExpectedIncomingMessageId += 1;
+                    SetCounterToNextValue();
 
                     shouldContinue = true;
                 }
                 else if (ProcessedMessages.Contains(NextExpectedIncomingMessageId))
                 {
                     ProcessedMessages.Remove(NextExpectedIncomingMessageId);
-                    NextExpectedIncomingMessageId++;
+
+                    SetCounterToNextValue();
+                    
                     shouldContinue = true;
                 }
 

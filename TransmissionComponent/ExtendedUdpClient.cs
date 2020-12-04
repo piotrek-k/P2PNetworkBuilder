@@ -22,19 +22,23 @@ namespace TransmissionComponent
         private object trackedMessagesLock = new object();
 
         public int NextSentMessageId = 0;
-        
+
         public Dictionary<Guid, KnownSource> KnownSources = new Dictionary<Guid, KnownSource>();
 
-        public event EventHandler<NewMessageEventArgs> NewIncomingMessage;
-        public virtual void OnNewMessageReceived(NewMessageEventArgs e)
+        //public event EventHandler<NewMessageEventArgs> NewIncomingMessage;
+        public Func<NewMessageEventArgs, AckStatus> NewIncomingMessage { get; set; }
+        public virtual AckStatus OnNewMessageReceived(NewMessageEventArgs e)
         {
-            EventHandler<NewMessageEventArgs> handler = NewIncomingMessage;
-            handler?.Invoke(this, e);
+            if (NewIncomingMessage != null)
+            {
+                return NewIncomingMessage.Invoke(e);
+            }
+
+            throw new Exception("Message not processed. No listener.");
         }
 
         public ExtendedUdpClient(ILogger logger)
         {
-            udpClient = null;
             _logger = logger;
         }
 
@@ -71,18 +75,16 @@ namespace TransmissionComponent
             var receivedData = udpClient.EndReceive(ar, ref senderIpEndPoint);
             DataFrame df = DataFrame.Unpack(receivedData);
 
-            KnownSource foundSource = null;
+            KnownSource foundSource;
             KnownSources.TryGetValue(df.SourceNodeIdGuid, out foundSource);
 
             if (foundSource == null)
             {
-                foundSource = new KnownSource(this);
+                foundSource = new KnownSource(this, df.SourceNodeIdGuid);
                 KnownSources.Add(df.SourceNodeIdGuid, foundSource);
             }
-            else
-            {
-                foundSource.HandleNewMessage(senderIpEndPoint, df);
-            }
+
+            foundSource.HandleNewMessage(senderIpEndPoint, df);
         }
 
         public void SendMessageSequentially(IPEndPoint endPoint, int messageType, byte[] payload, Guid source, byte[] encryptionSeed, Action<AckStatus> callback = null)
@@ -109,6 +111,41 @@ namespace TransmissionComponent
             thread.Start();
 
             NextSentMessageId++;
+        }
+
+        public void SendMessageNoTracking(IPEndPoint endPoint, int messageType, byte[] payload, Guid source)
+        {
+            var dataFrame = new DataFrame
+            {
+                MessageType = messageType,
+                Payload = payload,
+                PayloadSize = payload != null ? payload.Length : 0,
+                SourceNodeIdGuid = source,
+                ExpectAcknowledge = false,
+                RetransmissionId = 0,
+                IV = null
+            };
+            var bytes = dataFrame.PackToBytes();
+
+            udpClient.Send(bytes, bytes.Length, endPoint);
+        }
+
+        public void SendReceiveAck(IPEndPoint endPoint, byte[] payload, Guid source, int messageId)
+        {
+            var dataFrame = new DataFrame
+            {
+                MessageType = 0,
+                Payload = payload,
+                PayloadSize = payload != null ? payload.Length : 0,
+                SourceNodeIdGuid = source,
+                ExpectAcknowledge = false,
+                RetransmissionId = messageId,
+                IV = null,
+                ReceiveAck = true
+            };
+            var bytes = dataFrame.PackToBytes();
+
+            udpClient.Send(bytes, bytes.Length, endPoint);
         }
 
         public void RetransmissionThread(int messageId, TrackedMessage tm)

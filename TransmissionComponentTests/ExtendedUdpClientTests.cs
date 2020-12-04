@@ -35,7 +35,7 @@ namespace TransmissionComponentTests
             byte[] sentData = new byte[] { 1, 2, 3, 4 };
             int previousTrackMessagesSize = extendedUdpClient.TrackedMessages.Count();
             Guid sourceGuid = Guid.NewGuid();
-            byte[] encryptionSeed = Enumerable.Repeat((byte) 1, 16).ToArray();
+            byte[] encryptionSeed = Enumerable.Repeat((byte)1, 16).ToArray();
             int currentMessageId = extendedUdpClient.NextSentMessageId;
 
             udpClientMock.Setup(x => x.Send(It.IsAny<byte[]>(), It.IsAny<int>(), It.IsAny<IPEndPoint>()))
@@ -76,7 +76,7 @@ namespace TransmissionComponentTests
 
             // Act and Assert
             int initalLoop = 3;
-            for(int x=1; x<=initalLoop; x++)
+            for (int x = 1; x <= initalLoop; x++)
             {
                 extendedUdpClient.RetransmissionThread(messageId, tm);
                 udpClientMock
@@ -101,6 +101,8 @@ namespace TransmissionComponentTests
             // Arrange
             Mock<IUdpClient> udpClientMock = new Mock<IUdpClient>();
             ExtendedUdpClient extendedUdpClient = new ExtendedUdpClient(udpClientMock.Object, _logger);
+
+            extendedUdpClient.NewIncomingMessage = (x) => { return AckStatus.Success; };
 
             int testedMessageId = 1;
             Guid sourceId = Guid.NewGuid();

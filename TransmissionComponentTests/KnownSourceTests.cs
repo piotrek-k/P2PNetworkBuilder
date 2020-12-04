@@ -30,12 +30,13 @@ namespace TransmissionComponentTests
         public void CounterResetting_ShouldChangeDirectrionOfCounting(int idModifier, bool sequentialModifier)
         {
             // Arrange
-            Mock<ExtendedUdpClient> udpClientMock = new Mock<ExtendedUdpClient>(_logger);
-            KnownSource knownSource = new KnownSource(udpClientMock.Object);
+            Mock<IUdpClient> internetTransmissionMock = new Mock<IUdpClient>();
+            Mock<ExtendedUdpClient> udpClient = new Mock<ExtendedUdpClient>(internetTransmissionMock.Object, _logger);
+            KnownSource knownSource = new KnownSource(udpClient.Object, Guid.NewGuid());
             IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000);
 
             List<int> sequenceTracker = new List<int>();
-            udpClientMock.Setup(x => x.OnNewMessageReceived(It.IsAny<NewMessageEventArgs>())).Callback<NewMessageEventArgs>((evArg) =>
+            udpClient.Setup(x => x.OnNewMessageReceived(It.IsAny<NewMessageEventArgs>())).Callback<NewMessageEventArgs>((evArg) =>
             {
                 sequenceTracker.Add(evArg.DataFrame.RetransmissionId);
             });
@@ -96,8 +97,9 @@ namespace TransmissionComponentTests
         public void CounterShould_PreventOverflow(int valueCausingOverflow, int idModifier, bool sequentialModifier)
         {
             // Arrange
-            Mock<ExtendedUdpClient> udpClientMock = new Mock<ExtendedUdpClient>(_logger);
-            KnownSource knownSource = new KnownSource(udpClientMock.Object);
+            Mock<IUdpClient> internetTransmissionMock = new Mock<IUdpClient>();
+            Mock<ExtendedUdpClient> udpClientMock = new Mock<ExtendedUdpClient>(internetTransmissionMock.Object, _logger);
+            KnownSource knownSource = new KnownSource(udpClientMock.Object, Guid.NewGuid());
             IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000);
 
             List<int> sequenceTracker = new List<int>();
@@ -128,6 +130,42 @@ namespace TransmissionComponentTests
 
             // Assert
             Assert.Equal(new List<int> { valueCausingOverflow, 1 * idModifier, 2 * idModifier }, sequenceTracker);
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void HandleNewMessageShould_SendReceiveAckJustAfterReceiving(bool sequentialModifier)
+        {
+            // Arrange
+            Mock<IUdpClient> internetTransmissionMock = new Mock<IUdpClient>();
+            Mock<ExtendedUdpClient> udpClientMock = new Mock<ExtendedUdpClient>(internetTransmissionMock.Object, _logger);
+            KnownSource knownSource = new KnownSource(udpClientMock.Object, Guid.NewGuid());
+            IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000);
+
+            DataFrame sentDF;
+            internetTransmissionMock.Setup(x => x.Send(It.IsAny<byte[]>(), It.IsAny<int>(), It.IsAny<IPEndPoint>()))
+                .Callback<byte[], int, IPEndPoint>((dgram, bytes, endpoint) =>
+                {
+                    sentDF = DataFrame.Unpack(dgram);
+                });
+
+            knownSource.ResetCounter(1);
+
+            // Act
+            knownSource.HandleNewMessage(endpoint, new DataFrame()
+            {
+                RetransmissionId = 1,
+                SendSequentially = sequentialModifier ? true : false
+            });
+            knownSource.HandleNewMessage(endpoint, new DataFrame()
+            {
+                RetransmissionId = 1,
+                SendSequentially = sequentialModifier ? false : true
+            });
+
+            // Assert
+            internetTransmissionMock.Verify(x => x.Send(It.Is<byte[]>(y => DataFrame.Unpack(y).ReceiveAck == true), It.IsAny<int>(), It.IsAny<IPEndPoint>()), Times.Once);
         }
     }
 }
