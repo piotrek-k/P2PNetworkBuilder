@@ -36,7 +36,7 @@ namespace TransmissionComponentTests
             int previousTrackMessagesSize = extendedUdpClient.TrackedMessages.Count();
             Guid sourceGuid = Guid.NewGuid();
             byte[] encryptionSeed = Enumerable.Repeat((byte) 1, 16).ToArray();
-            uint currentMessageId = extendedUdpClient.NextSentMessageId;
+            int currentMessageId = extendedUdpClient.NextSentMessageId;
 
             udpClientMock.Setup(x => x.Send(It.IsAny<byte[]>(), It.IsAny<int>(), It.IsAny<IPEndPoint>()))
                 .Callback<byte[], int, IPEndPoint>((dgram, bytes, endpoint) =>
@@ -71,7 +71,7 @@ namespace TransmissionComponentTests
             IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000);
             extendedUdpClient.WaitingTimeBetweenRetransmissions = 0; // waiting time to zero
             TrackedMessage tm = new TrackedMessage(new byte[] { 1, 2, 3, 4 }, endpoint);
-            uint messageId = 1;
+            int messageId = 1;
             extendedUdpClient.TrackedMessages.Add(messageId, tm);
 
             // Act and Assert
@@ -102,7 +102,7 @@ namespace TransmissionComponentTests
             Mock<IUdpClient> udpClientMock = new Mock<IUdpClient>();
             ExtendedUdpClient extendedUdpClient = new ExtendedUdpClient(udpClientMock.Object, _logger);
 
-            uint testedMessageId = 1;
+            int testedMessageId = 1;
             Guid sourceId = Guid.NewGuid();
 
             udpClientMock.Setup(x => x.EndReceive(It.IsAny<IAsyncResult>(), ref It.Ref<IPEndPoint>.IsAny))

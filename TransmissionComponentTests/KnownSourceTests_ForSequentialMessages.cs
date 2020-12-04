@@ -31,7 +31,7 @@ namespace TransmissionComponentTests
             IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000);
             Guid sourceId = Guid.NewGuid();
 
-            uint testedMessageId = 1;
+            int testedMessageId = 1;
             knownSource.NextExpectedIncomingMessageId = 1;
 
             DataFrame df = new DataFrame()
@@ -51,7 +51,7 @@ namespace TransmissionComponentTests
         [Theory]
         [InlineData(2)]
         [InlineData(int.MaxValue)]
-        public void HandleNewMessageShould_PostponeProcessingMessageWithImproperId(uint testedMessageId)
+        public void HandleNewMessageShould_PostponeProcessingMessageWithImproperId(int testedMessageId)
         {
             // Arrange
             Mock<ExtendedUdpClient> udpClientMock = new Mock<ExtendedUdpClient>(_logger);
@@ -149,7 +149,7 @@ namespace TransmissionComponentTests
             KnownSource knownSource = new KnownSource(udpClientMock.Object);
             IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000);
 
-            List<uint> sequenceTracker = new List<uint>();
+            List<int> sequenceTracker = new List<int>();
             udpClientMock.Setup(x => x.OnNewMessageReceived(It.IsAny<NewMessageEventArgs>())).Callback<NewMessageEventArgs>((evArg) =>
             {
                 sequenceTracker.Add(evArg.DataFrame.RetransmissionId);
@@ -184,7 +184,7 @@ namespace TransmissionComponentTests
 
             // Assert
             udpClientMock.Verify(x => x.OnNewMessageReceived(It.IsAny<NewMessageEventArgs>()), Times.Exactly(5));
-            Assert.Equal(new List<uint> { 2, 3, 1, 4, 5 }, sequenceTracker);
+            Assert.Equal(new List<int> { 2, 3, 1, 4, 5 }, sequenceTracker);
         }
     }
 }

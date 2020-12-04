@@ -18,10 +18,10 @@ namespace TransmissionComponent
 
         public uint WaitingTimeBetweenRetransmissions { get; set; } = 2000;
 
-        public Dictionary<uint, TrackedMessage> TrackedMessages { get; private set; } = new Dictionary<uint, TrackedMessage>();
+        public Dictionary<int, TrackedMessage> TrackedMessages { get; private set; } = new Dictionary<int, TrackedMessage>();
         private object trackedMessagesLock = new object();
 
-        public uint NextSentMessageId = 0;
+        public int NextSentMessageId = 0;
         
         public Dictionary<Guid, KnownSource> KnownSources = new Dictionary<Guid, KnownSource>();
 
@@ -111,7 +111,7 @@ namespace TransmissionComponent
             NextSentMessageId++;
         }
 
-        public void RetransmissionThread(uint messageId, TrackedMessage tm)
+        public void RetransmissionThread(int messageId, TrackedMessage tm)
         {
             bool messageReceived = false;
             do

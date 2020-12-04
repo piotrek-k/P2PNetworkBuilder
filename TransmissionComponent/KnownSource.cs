@@ -7,7 +7,7 @@ namespace TransmissionComponent
 {
     public class KnownSource
     {
-        public uint NextExpectedIncomingMessageId = 1;
+        public int NextExpectedIncomingMessageId = 1;
         private ExtendedUdpClient _euc;
 
         public class WaitingMessage
@@ -16,8 +16,8 @@ namespace TransmissionComponent
             public IPEndPoint Sender { get; set; }
         }
 
-        public SortedList<uint, WaitingMessage> WaitingMessages { get; private set; } = new SortedList<uint, WaitingMessage>();
-        public HashSet<uint> ProcessedMessages { get; private set; } = new HashSet<uint>();
+        public SortedList<int, WaitingMessage> WaitingMessages { get; private set; } = new SortedList<int, WaitingMessage>();
+        public HashSet<int> ProcessedMessages { get; private set; } = new HashSet<int>();
 
         public KnownSource(ExtendedUdpClient euc)
         {
@@ -37,7 +37,8 @@ namespace TransmissionComponent
 
                     SetCounterToNextValue();
                 }
-                else if (df.RetransmissionId > NextExpectedIncomingMessageId)
+                else if ((NextExpectedIncomingMessageId > 0 && df.RetransmissionId > NextExpectedIncomingMessageId) ||
+                    (NextExpectedIncomingMessageId < 0 && df.RetransmissionId < NextExpectedIncomingMessageId))
                 {
                     WaitingMessages.Add(df.RetransmissionId, new WaitingMessage
                     {
@@ -46,7 +47,11 @@ namespace TransmissionComponent
                     });
                 }
             }
-            else if (df.RetransmissionId >= NextExpectedIncomingMessageId
+            else if (
+                (
+                    (NextExpectedIncomingMessageId > 0 && df.RetransmissionId >= NextExpectedIncomingMessageId) ||
+                    (NextExpectedIncomingMessageId < 0 && df.RetransmissionId <= NextExpectedIncomingMessageId)
+                )
                 && !ProcessedMessages.Contains(df.RetransmissionId))
             {
                 _euc.OnNewMessageReceived(new NewMessageEventArgs
@@ -67,7 +72,10 @@ namespace TransmissionComponent
 
         private void SetCounterToNextValue()
         {
-            NextExpectedIncomingMessageId += 1;
+            if (NextExpectedIncomingMessageId > 0)
+                NextExpectedIncomingMessageId += 1;
+            else
+                NextExpectedIncomingMessageId -= 1;
 
             SequentiallyProcessNextWaitingMessages();
         }
@@ -100,6 +108,14 @@ namespace TransmissionComponent
                 }
 
             } while (shouldContinue);
+        }
+
+        public void ResetCounter(int expectedNextIncomingValue)
+        {
+            WaitingMessages.Clear();
+            ProcessedMessages.Clear();
+
+            NextExpectedIncomingMessageId = expectedNextIncomingValue;
         }
     }
 }

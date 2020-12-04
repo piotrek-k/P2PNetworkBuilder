@@ -32,7 +32,7 @@ namespace TransmissionComponentTests
             Guid sourceId = Guid.NewGuid();
 
             knownSource.NextExpectedIncomingMessageId = 1;
-            uint testedMessageId = 10;
+            int testedMessageId = 10;
 
             DataFrame df = new DataFrame()
             {

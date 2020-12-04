@@ -34,7 +34,7 @@ namespace TransmissionComponent.Structures
 
         [ValueToPack(3)]
         [FixedSize(4)]
-        public uint RetransmissionId { get; set; }
+        public int RetransmissionId { get; set; }
 
         [ValueToPack(4)]
         [FixedSize(1)]
