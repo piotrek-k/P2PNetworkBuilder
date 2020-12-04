@@ -72,10 +72,31 @@ namespace TransmissionComponent
 
         private void SetCounterToNextValue()
         {
-            if (NextExpectedIncomingMessageId > 0)
-                NextExpectedIncomingMessageId += 1;
-            else
-                NextExpectedIncomingMessageId -= 1;
+            checked
+            {
+                try
+                {
+                    if (NextExpectedIncomingMessageId > 0)
+                    {
+                        NextExpectedIncomingMessageId += 1;
+                    }
+                    else
+                    {
+                        NextExpectedIncomingMessageId -= 1;
+                    }
+                }
+                catch (OverflowException)
+                {
+                    if (NextExpectedIncomingMessageId > 0)
+                    {
+                        NextExpectedIncomingMessageId = 1;
+                    }
+                    else
+                    {
+                        NextExpectedIncomingMessageId = -1;
+                    }
+                }
+            }
 
             SequentiallyProcessNextWaitingMessages();
         }
