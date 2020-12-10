@@ -128,5 +128,44 @@ namespace TransmissionComponentTests
             // Assert
             Assert.True(extendedUdpClient.KnownSources.Count() == previousKnownSourceCount + 1);
         }
+
+        [Fact]
+        public void HandleIncomingMessagesShould_StopRetransmittingAfterReceivingAck()
+        {
+            // Arrange
+            Mock<IUdpClient> udpClientMock = new Mock<IUdpClient>();
+            ExtendedUdpClient extendedUdpClient = new ExtendedUdpClient(udpClientMock.Object, _logger);
+            extendedUdpClient.NewIncomingMessage = (x) => { return AckStatus.Success; };
+
+            int testedMessageId = 1;
+            udpClientMock.Setup(x => x.EndReceive(It.IsAny<IAsyncResult>(), ref It.Ref<IPEndPoint>.IsAny))
+                .Returns(() =>
+                {
+                    return new DataFrame()
+                    {
+                        RetransmissionId = testedMessageId,
+                        ReceiveAck = true
+                    }.PackToBytes();
+                });
+
+            extendedUdpClient.TrackedMessages.Add(
+                testedMessageId, new TrackedMessage(
+                    new byte[] { 1, 2 },
+                    new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000)
+                    ));
+            extendedUdpClient.TrackedMessages.Add(
+               testedMessageId + 1, new TrackedMessage(
+                   new byte[] { 1, 2 },
+                   new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000)
+                   ));
+
+            Assert.Equal(2, extendedUdpClient.TrackedMessages.Count);
+
+            // Act
+            extendedUdpClient.HandleIncomingMessages(null);
+
+            // Assert
+            Assert.Equal(1, extendedUdpClient.TrackedMessages.Count);
+        }
     }
 }

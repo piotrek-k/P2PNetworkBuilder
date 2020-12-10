@@ -75,16 +75,23 @@ namespace TransmissionComponent
             var receivedData = udpClient.EndReceive(ar, ref senderIpEndPoint);
             DataFrame df = DataFrame.Unpack(receivedData);
 
-            KnownSource foundSource;
-            KnownSources.TryGetValue(df.SourceNodeIdGuid, out foundSource);
-
-            if (foundSource == null)
+            if (df.ReceiveAck)
             {
-                foundSource = new KnownSource(this, df.SourceNodeIdGuid);
-                KnownSources.Add(df.SourceNodeIdGuid, foundSource);
+                TrackedMessages.Remove(df.RetransmissionId);
             }
+            else
+            {
+                KnownSource foundSource;
+                KnownSources.TryGetValue(df.SourceNodeIdGuid, out foundSource);
 
-            foundSource.HandleNewMessage(senderIpEndPoint, df);
+                if (foundSource == null)
+                {
+                    foundSource = new KnownSource(this, df.SourceNodeIdGuid);
+                    KnownSources.Add(df.SourceNodeIdGuid, foundSource);
+                }
+
+                foundSource.HandleNewMessage(senderIpEndPoint, df);
+            }
         }
 
         public void SendMessageSequentially(IPEndPoint endPoint, int messageType, byte[] payload, Guid source, byte[] encryptionSeed, Action<AckStatus> callback = null)
