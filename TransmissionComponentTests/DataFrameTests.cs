@@ -18,8 +18,6 @@ namespace TransmissionComponentTests
             df.SourceNodeIdGuid = new Guid();
             df.Payload = new byte[] { 1, 2, 3 };
             df.ExpectAcknowledge = true;
-            df.MessageType = 15;
-            df.IV = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
             df.RetransmissionId = 50;
 
             // Act
@@ -29,9 +27,7 @@ namespace TransmissionComponentTests
             // Assert
             Assert.Equal(df.SourceNodeIdGuid, receivedFrame.SourceNodeIdGuid);
             Assert.Equal(df.Payload, receivedFrame.Payload);
-            Assert.Equal(df.MessageType, receivedFrame.MessageType);
             Assert.Equal(df.ExpectAcknowledge, receivedFrame.ExpectAcknowledge);
-            Assert.Equal(df.IV, receivedFrame.IV);
             Assert.Equal(df.RetransmissionId, receivedFrame.RetransmissionId);
         }
 
@@ -71,8 +67,6 @@ namespace TransmissionComponentTests
             df.SourceNodeIdGuid = new Guid();
             df.Payload = null;
             df.ExpectAcknowledge = true;
-            df.MessageType = 15;
-            df.IV = null;
             df.RetransmissionId = 50;
 
             // Act
@@ -82,9 +76,7 @@ namespace TransmissionComponentTests
             // Assert
             Assert.Equal(df.SourceNodeIdGuid, receivedFrame.SourceNodeIdGuid);
             Assert.Equal(df.Payload, receivedFrame.Payload);
-            Assert.Equal(df.MessageType, receivedFrame.MessageType);
             Assert.Equal(df.ExpectAcknowledge, receivedFrame.ExpectAcknowledge);
-            Assert.Equal(df.IV, receivedFrame.IV);
             Assert.Equal(df.RetransmissionId, receivedFrame.RetransmissionId);
         }
 
@@ -124,8 +116,6 @@ namespace TransmissionComponentTests
             df.SourceNodeIdGuid = new Guid();
             df.Payload = new byte[] { 1, 2, 3 };
             df.ExpectAcknowledge = true;
-            df.MessageType = 15;
-            df.IV = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
             df.RetransmissionId = 50;
 
             // Act

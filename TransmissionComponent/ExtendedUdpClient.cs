@@ -147,17 +147,15 @@ namespace TransmissionComponent
         /// <param name="source">Guid of this device</param>
         /// <param name="encryptionSeed"></param>
         /// <param name="callback">method that should be called after successfull delivery</param>
-        public void SendMessageSequentially(IPEndPoint endPoint, int messageType, byte[] payload, Guid source, byte[] encryptionSeed, Action<AckStatus> callback = null)
+        public void SendMessageSequentially(IPEndPoint endPoint, byte[] payload, Guid source, Action<AckStatus> callback = null)
         {
             var dataFrame = new DataFrame
             {
-                MessageType = messageType,
                 Payload = payload,
                 PayloadSize = payload != null ? payload.Length : 0,
                 SourceNodeIdGuid = source,
                 ExpectAcknowledge = true,
-                RetransmissionId = NextSentMessageId,
-                IV = encryptionSeed
+                RetransmissionId = NextSentMessageId
             };
             var bytes = dataFrame.PackToBytes();
 
@@ -180,17 +178,15 @@ namespace TransmissionComponent
         /// <param name="messageType"></param>
         /// <param name="payload"></param>
         /// <param name="source"></param>
-        public void SendMessageNoTracking(IPEndPoint endPoint, int messageType, byte[] payload, Guid source)
+        public void SendMessageNoTracking(IPEndPoint endPoint, byte[] payload, Guid source)
         {
             var dataFrame = new DataFrame
             {
-                MessageType = messageType,
                 Payload = payload,
                 PayloadSize = payload != null ? payload.Length : 0,
                 SourceNodeIdGuid = source,
                 ExpectAcknowledge = false,
-                RetransmissionId = 0,
-                IV = null
+                RetransmissionId = 0
             };
             var bytes = dataFrame.PackToBytes();
 
@@ -208,13 +204,11 @@ namespace TransmissionComponent
         {
             var dataFrame = new DataFrame
             {
-                MessageType = 0,
                 Payload = payload,
                 PayloadSize = payload != null ? payload.Length : 0,
                 SourceNodeIdGuid = source,
                 ExpectAcknowledge = false,
                 RetransmissionId = messageId,
-                IV = null,
                 ReceiveAck = true
             };
             var bytes = dataFrame.PackToBytes();

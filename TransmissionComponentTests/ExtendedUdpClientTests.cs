@@ -31,11 +31,9 @@ namespace TransmissionComponentTests
 
             byte[] receivedData = null;
             IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000);
-            int messageType = 1;
             byte[] sentData = new byte[] { 1, 2, 3, 4 };
             int previousTrackMessagesSize = extendedUdpClient.TrackedMessages.Count();
             Guid sourceGuid = Guid.NewGuid();
-            byte[] encryptionSeed = Enumerable.Repeat((byte)1, 16).ToArray();
             int currentMessageId = extendedUdpClient.NextSentMessageId;
 
             udpClientMock.Setup(x => x.Send(It.IsAny<byte[]>(), It.IsAny<int>(), It.IsAny<IPEndPoint>()))
@@ -46,7 +44,7 @@ namespace TransmissionComponentTests
 
             // Act 
             extendedUdpClient.SendMessageSequentially(
-                endpoint, messageType, sentData, sourceGuid, encryptionSeed, callback);
+                endpoint, sentData, sourceGuid, callback);
 
             // Assert
             udpClientMock
@@ -55,7 +53,6 @@ namespace TransmissionComponentTests
 
             DataFrame result = DataFrame.Unpack(receivedData);
             Assert.True(result.ExpectAcknowledge);
-            Assert.Equal(result.MessageType, messageType);
             Assert.Equal(result.Payload, sentData);
             Assert.True(extendedUdpClient.TrackedMessages.Count() == previousTrackMessagesSize + 1);
             Assert.True(extendedUdpClient.NextSentMessageId == currentMessageId + 1);

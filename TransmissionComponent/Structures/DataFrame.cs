@@ -28,9 +28,9 @@ namespace TransmissionComponent.Structures
             }
         }
 
-        [ValueToPack(2)]
-        [FixedSize(4)]
-        public int MessageType { get; set; }
+        //[ValueToPack(2)]
+        //[FixedSize(4)]
+        //public int MessageType { get; set; }
 
         [ValueToPack(3)]
         [FixedSize(4)]
@@ -82,10 +82,10 @@ namespace TransmissionComponent.Structures
         /// <summary>
         /// Initialization vector for encryption
         /// </summary>
-        [ValueToPack(5)]
-        [FixedSize(16)]
-        [TreatZerosLikeNull]
-        public byte[] IV { get; set; }
+        //[ValueToPack(5)]
+        //[FixedSize(16)]
+        //[TreatZerosLikeNull]
+        //public byte[] IV { get; set; }
 
         [ValueToPack(6)]
         [FixedSize(4)]
