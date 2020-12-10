@@ -41,7 +41,7 @@ namespace TransmissionComponent
         /// Function that will be executed each time message arrives (after ordering and filtration done by component)
         /// </summary>
         public Func<NewMessageEventArgs, AckStatus> NewIncomingMessage { get; set; }
-        internal virtual AckStatus OnNewMessageReceived(NewMessageEventArgs e)
+        public virtual AckStatus OnNewMessageReceived(NewMessageEventArgs e)
         {
             if (NewIncomingMessage != null)
             {
@@ -97,6 +97,29 @@ namespace TransmissionComponent
             {
                 lock (trackedMessagesLock)
                 {
+                    TrackedMessage tm;
+                    AckStatus status = AckStatus.Failure; // failure by default
+
+                    TrackedMessages.TryGetValue(df.RetransmissionId, out tm);
+
+                    if (df.Payload != null)
+                    {
+                        try
+                        {
+                            ReceiveAcknowledge ra = ReceiveAcknowledge.Unpack(df.Payload);
+                            status = (AckStatus)ra.Status;
+                        }
+                        catch (Exception e)
+                        {
+                            _logger.LogError($"Error while handling ReceiveAck. {e.Message}");
+                        }
+                    }
+
+                    if(tm != null && tm.Callback != null)
+                    {
+                        tm.Callback(status);
+                    }
+
                     TrackedMessages.Remove(df.RetransmissionId);
                 }
             }
@@ -140,7 +163,7 @@ namespace TransmissionComponent
 
             udpClient.Send(bytes, bytes.Length, endPoint);
 
-            TrackedMessage tm = new TrackedMessage(bytes, endPoint);
+            TrackedMessage tm = new TrackedMessage(bytes, endPoint, callback);
             TrackedMessages.Add(NextSentMessageId, tm);
 
             Thread thread = new Thread(() => RetransmissionThread(NextSentMessageId, tm));

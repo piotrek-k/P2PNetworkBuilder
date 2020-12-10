@@ -165,7 +165,64 @@ namespace TransmissionComponentTests
             extendedUdpClient.HandleIncomingMessages(null);
 
             // Assert
-            Assert.Equal(1, extendedUdpClient.TrackedMessages.Count);
+            Assert.Single(extendedUdpClient.TrackedMessages);
+        }
+
+        [Theory]
+        [InlineData(AckStatus.Success)]
+        [InlineData(AckStatus.Failure)]
+        public void HandleIncomingMessagesShould_RunCallBackWhenAcknowledgeArrives(AckStatus messageStatus)
+        {
+            // Arrange
+            Mock<IUdpClient> udpClientMock = new Mock<IUdpClient>();
+            ExtendedUdpClient extendedUdpClient = new ExtendedUdpClient(udpClientMock.Object, _logger);
+            extendedUdpClient.NewIncomingMessage = (x) => { return AckStatus.Success; };
+            int testedMessageId = 1;
+            int numberOfFailures = 0;
+            int numberOfSuccesses = 0;
+            udpClientMock.Setup(x => x.EndReceive(It.IsAny<IAsyncResult>(), ref It.Ref<IPEndPoint>.IsAny))
+                .Returns(() =>
+                {
+                    return new DataFrame()
+                    {
+                        RetransmissionId = testedMessageId,
+                        ReceiveAck = true,
+                        Payload = new ReceiveAcknowledge() { Status = (int)messageStatus }.PackToBytes()
+                    }.PackToBytes();
+                });
+
+            extendedUdpClient.TrackedMessages.Add(
+                testedMessageId, new TrackedMessage(
+                    new byte[] { 1, 2 },
+                    new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000),
+                    (status) =>
+                    {
+                        if (status == AckStatus.Failure)
+                            numberOfFailures++;
+                        else if (status == AckStatus.Success)
+                            numberOfSuccesses++;
+                    }
+                    ));
+            extendedUdpClient.TrackedMessages.Add(
+               testedMessageId + 1, new TrackedMessage(
+                   new byte[] { 1, 2 },
+                   new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000),
+                   (status) =>
+                   {
+                       if (status == AckStatus.Failure)
+                           numberOfFailures++;
+                       else if (status == AckStatus.Success)
+                           numberOfSuccesses++;
+                   }
+                   ));
+
+            // Act
+            extendedUdpClient.HandleIncomingMessages(null);
+            extendedUdpClient.HandleIncomingMessages(null);
+            extendedUdpClient.HandleIncomingMessages(null);
+
+            // Assert
+            Assert.Equal(1, messageStatus == AckStatus.Success ? numberOfSuccesses : numberOfFailures);
         }
     }
 }
