@@ -76,7 +76,8 @@ namespace TransmissionComponent
         {
             AckStatus result = _euc.OnNewMessageReceived(new NewMessageEventArgs
             {
-                DataFrame = df
+                DataFrame = df,
+                SenderIPEndpoint = callbackEndpoint
             });
 
             var ra = new ReceiveAcknowledge()

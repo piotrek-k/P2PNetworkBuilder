@@ -51,6 +51,8 @@ namespace TransmissionComponent
             throw new Exception("Message not processed. No listener.");
         }
 
+        public int MaxPacketSize { get; set; } = 65407;
+
         public ExtendedUdpClient(ILogger logger)
         {
             _logger = logger;
@@ -65,7 +67,7 @@ namespace TransmissionComponent
         /// Begins listening for incoming messages on specified port
         /// </summary>
         /// <param name="port"></param>
-        public void StartListening(int port = 13000)
+        public void StartListening(int port)
         {
             udpClient = new UdpClientAdapter(port);
 
@@ -159,6 +161,11 @@ namespace TransmissionComponent
             };
             var bytes = dataFrame.PackToBytes();
 
+            if (bytes.Length > MaxPacketSize)
+            {
+                throw new Exception($"Data packet of size {bytes.Length} exceeded maximal allowed size ({MaxPacketSize})");
+            }
+
             udpClient.Send(bytes, bytes.Length, endPoint);
 
             TrackedMessage tm = new TrackedMessage(bytes, endPoint, callback);
@@ -190,6 +197,11 @@ namespace TransmissionComponent
             };
             var bytes = dataFrame.PackToBytes();
 
+            if (bytes.Length > MaxPacketSize)
+            {
+                throw new Exception($"Data packet of size {bytes.Length} exceeded maximal allowed size ({MaxPacketSize})");
+            }
+
             udpClient.Send(bytes, bytes.Length, endPoint);
         }
 
@@ -212,6 +224,11 @@ namespace TransmissionComponent
                 ReceiveAck = true
             };
             var bytes = dataFrame.PackToBytes();
+
+            if (bytes.Length > MaxPacketSize)
+            {
+                throw new Exception($"Data packet of size {bytes.Length} exceeded maximal allowed size ({MaxPacketSize})");
+            }
 
             udpClient.Send(bytes, bytes.Length, endPoint);
         }

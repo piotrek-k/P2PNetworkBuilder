@@ -16,5 +16,9 @@ namespace TransmissionComponent
         void SendMessageSequentially(IPEndPoint endPoint, byte[] payload, Guid source, Action<AckStatus> callback = null);
         //public void SendMessageOnlyEnsureDelivered();
         //public void SendMessageAsDatagram();
+
+        void StartListening(int port);
+
+        int MaxPacketSize { get; set; }
     }
 }
