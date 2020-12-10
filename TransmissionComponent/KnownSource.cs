@@ -125,7 +125,7 @@ namespace TransmissionComponent
             do
             {
                 shouldContinue = false;
-                wm = WaitingMessages.GetValueOrDefault(NextExpectedIncomingMessageId);
+                WaitingMessages.TryGetValue(NextExpectedIncomingMessageId, out wm);
 
                 if (wm != null)
                 {
