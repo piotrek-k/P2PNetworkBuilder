@@ -6,20 +6,20 @@ using TransmissionComponent.Structures.Other;
 
 namespace TransmissionComponent
 {
-    public class KnownSource
+    internal class KnownSource
     {
-        public int NextExpectedIncomingMessageId = 1;
+        internal int NextExpectedIncomingMessageId = 1;
         private ExtendedUdpClient _euc;
         private Guid _deviceId;
 
-        public class WaitingMessage
+        internal class WaitingMessage
         {
             public DataFrame DataFrame { get; set; }
             public IPEndPoint Sender { get; set; }
         }
 
-        public SortedList<int, WaitingMessage> WaitingMessages { get; private set; } = new SortedList<int, WaitingMessage>();
-        public HashSet<int> ProcessedMessages { get; private set; } = new HashSet<int>();
+        internal SortedList<int, WaitingMessage> WaitingMessages { get; private set; } = new SortedList<int, WaitingMessage>();
+        internal HashSet<int> ProcessedMessages { get; private set; } = new HashSet<int>();
 
         public KnownSource(ExtendedUdpClient euc, Guid deviceId)
         {
@@ -27,7 +27,12 @@ namespace TransmissionComponent
             _deviceId = deviceId;
         }
 
-        public void HandleNewMessage(IPEndPoint senderIpEndPoint, DataFrame df)
+        /// <summary>
+        /// Process message or add it to queue. Then try to process waiting messages.
+        /// </summary>
+        /// <param name="senderIpEndPoint"></param>
+        /// <param name="df"></param>
+        internal void HandleNewMessage(IPEndPoint senderIpEndPoint, DataFrame df)
         {
             if (df.SendSequentially)
             {

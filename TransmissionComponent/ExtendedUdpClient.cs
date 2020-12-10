@@ -18,16 +18,30 @@ namespace TransmissionComponent
 
         public uint WaitingTimeBetweenRetransmissions { get; set; } = 2000;
 
-        public Dictionary<int, TrackedMessage> TrackedMessages { get; private set; } = new Dictionary<int, TrackedMessage>();
-        private object trackedMessagesLock = new object();
+        /// <summary>
+        /// Stores messages that were sent, but receiver haven't sent back acknowledge yet
+        /// </summary>
+        internal Dictionary<int, TrackedMessage> TrackedMessages { get; private set; } = new Dictionary<int, TrackedMessage>();
+        /// <summary>
+        /// Lock that keeps TrackedMessages thread-safe
+        /// </summary>
+        internal object trackedMessagesLock = new object();
 
-        public int NextSentMessageId = 0;
+        /// <summary>
+        /// Id that will be assigned to next sent message
+        /// </summary>
+        internal int NextSentMessageId = 0;
 
-        public Dictionary<Guid, KnownSource> KnownSources = new Dictionary<Guid, KnownSource>();
+        /// <summary>
+        /// Stores `KnownSource` class instance for each Guid that ever appeared in any incoming message
+        /// </summary>
+        internal Dictionary<Guid, KnownSource> KnownSources = new Dictionary<Guid, KnownSource>();
 
-        //public event EventHandler<NewMessageEventArgs> NewIncomingMessage;
+        /// <summary>
+        /// Function that will be executed each time message arrives (after ordering and filtration done by component)
+        /// </summary>
         public Func<NewMessageEventArgs, AckStatus> NewIncomingMessage { get; set; }
-        public virtual AckStatus OnNewMessageReceived(NewMessageEventArgs e)
+        internal virtual AckStatus OnNewMessageReceived(NewMessageEventArgs e)
         {
             if (NewIncomingMessage != null)
             {
@@ -47,6 +61,10 @@ namespace TransmissionComponent
             udpClient = udpClientInstance;
         }
 
+        /// <summary>
+        /// Begins listening for incoming messages on specified port
+        /// </summary>
+        /// <param name="port"></param>
         public void StartListening(int port = 13000)
         {
             udpClient = new UdpClientAdapter(port);
@@ -69,7 +87,7 @@ namespace TransmissionComponent
             udpClient.BeginReceive(new AsyncCallback(HandleIncomingMessages), null);
         }
 
-        public void HandleIncomingMessages(IAsyncResult ar)
+        internal void HandleIncomingMessages(IAsyncResult ar)
         {
             IPEndPoint senderIpEndPoint = new IPEndPoint(0, 0);
             var receivedData = udpClient.EndReceive(ar, ref senderIpEndPoint);
@@ -77,7 +95,10 @@ namespace TransmissionComponent
 
             if (df.ReceiveAck)
             {
-                TrackedMessages.Remove(df.RetransmissionId);
+                lock (trackedMessagesLock)
+                {
+                    TrackedMessages.Remove(df.RetransmissionId);
+                }
             }
             else
             {
@@ -94,6 +115,15 @@ namespace TransmissionComponent
             }
         }
 
+        /// <summary>
+        /// Send message ensuring it will be delivered (retransmitted if necessary) and processed in correct order
+        /// </summary>
+        /// <param name="endPoint">address to which message should be sent</param>
+        /// <param name="messageType"></param>
+        /// <param name="payload"></param>
+        /// <param name="source">Guid of this device</param>
+        /// <param name="encryptionSeed"></param>
+        /// <param name="callback">method that should be called after successfull delivery</param>
         public void SendMessageSequentially(IPEndPoint endPoint, int messageType, byte[] payload, Guid source, byte[] encryptionSeed, Action<AckStatus> callback = null)
         {
             var dataFrame = new DataFrame
@@ -120,6 +150,13 @@ namespace TransmissionComponent
             NextSentMessageId++;
         }
 
+        /// <summary>
+        /// Send message without checking if was delivered
+        /// </summary>
+        /// <param name="endPoint"></param>
+        /// <param name="messageType"></param>
+        /// <param name="payload"></param>
+        /// <param name="source"></param>
         public void SendMessageNoTracking(IPEndPoint endPoint, int messageType, byte[] payload, Guid source)
         {
             var dataFrame = new DataFrame
@@ -137,7 +174,14 @@ namespace TransmissionComponent
             udpClient.Send(bytes, bytes.Length, endPoint);
         }
 
-        public void SendReceiveAck(IPEndPoint endPoint, byte[] payload, Guid source, int messageId)
+        /// <summary>
+        /// Informs remote endpoint that message was processed
+        /// </summary>
+        /// <param name="endPoint"></param>
+        /// <param name="payload"></param>
+        /// <param name="source"></param>
+        /// <param name="messageId"></param>
+        internal void SendReceiveAck(IPEndPoint endPoint, byte[] payload, Guid source, int messageId)
         {
             var dataFrame = new DataFrame
             {
@@ -155,7 +199,7 @@ namespace TransmissionComponent
             udpClient.Send(bytes, bytes.Length, endPoint);
         }
 
-        public void RetransmissionThread(int messageId, TrackedMessage tm)
+        internal void RetransmissionThread(int messageId, TrackedMessage tm)
         {
             bool messageReceived = false;
             do
