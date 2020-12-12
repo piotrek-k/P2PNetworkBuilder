@@ -151,13 +151,23 @@ namespace TransmissionComponent
         /// <param name="callback">method that should be called after successfull delivery</param>
         public void SendMessageSequentially(IPEndPoint endPoint, byte[] payload, Guid source, Action<AckStatus> callback = null)
         {
+            SendMessage(endPoint, payload, source, true, callback);
+        }
+
+        public void SendMessageNonSequentially(IPEndPoint endPoint, byte[] payload, Guid source, Action<AckStatus> callback = null)
+        {
+            SendMessage(endPoint, payload, source, false, callback);
+        }
+
+        private void SendMessage(IPEndPoint endPoint, byte[] payload, Guid source, bool sequentially, Action<AckStatus> callback = null)
+        {
             var dataFrame = new DataFrame
             {
                 Payload = payload,
-                PayloadSize = payload != null ? payload.Length : 0,
                 SourceNodeIdGuid = source,
                 ExpectAcknowledge = true,
-                RetransmissionId = NextSentMessageId
+                RetransmissionId = NextSentMessageId,
+                SendSequentially = sequentially
             };
             var bytes = dataFrame.PackToBytes();
 
@@ -190,7 +200,6 @@ namespace TransmissionComponent
             var dataFrame = new DataFrame
             {
                 Payload = payload,
-                PayloadSize = payload != null ? payload.Length : 0,
                 SourceNodeIdGuid = source,
                 ExpectAcknowledge = false,
                 RetransmissionId = 0
@@ -217,7 +226,6 @@ namespace TransmissionComponent
             var dataFrame = new DataFrame
             {
                 Payload = payload,
-                PayloadSize = payload != null ? payload.Length : 0,
                 SourceNodeIdGuid = source,
                 ExpectAcknowledge = false,
                 RetransmissionId = messageId,
