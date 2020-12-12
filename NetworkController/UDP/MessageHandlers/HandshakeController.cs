@@ -46,11 +46,11 @@ namespace NetworkController.UDP.MessageHandlers
             {
                 AesKey = source.Ses.ExportKeys()
             }.PackToBytes();
-            source.SendBytes((int)MessageType.PrivateKey, dataToSend);
+            source.SendMessageSequentially((int)MessageType.PrivateKey, dataToSend);
 
             // sending additional info
             dataToSend = GenerateAdditionalInfo(source).PackToBytes();
-            source.SendBytes((int)MessageType.AdditionalInfo, dataToSend);
+            source.SendMessageSequentially((int)MessageType.AdditionalInfo, dataToSend);
         }
 
         [IncomingMessage(MessageType.PrivateKey)]
@@ -62,7 +62,7 @@ namespace NetworkController.UDP.MessageHandlers
 
             var dataToSend = GenerateAdditionalInfo(source).PackToBytes();
 
-            source.SendBytes((int)MessageType.AdditionalInfo, dataToSend);
+            source.SendMessageSequentially((int)MessageType.AdditionalInfo, dataToSend);
         }
 
         [IncomingMessage(MessageType.AdditionalInfo)]
@@ -85,7 +85,7 @@ namespace NetworkController.UDP.MessageHandlers
 
                     if (foundNode == null)
                     {
-                        source.SendBytes((int)MessageType.HolePunchingRequest, new HolePunchingRequest()
+                        source.SendMessageSequentially((int)MessageType.HolePunchingRequest, new HolePunchingRequest()
                         {
                             RequestedDeviceId = incomingNodeId
                         }.PackToBytes());
@@ -109,7 +109,7 @@ namespace NetworkController.UDP.MessageHandlers
 
             // sending additional info
             var dataToSend = GenerateAdditionalInfo(source).PackToBytes();
-            source.SendBytes((int)MessageType.AdditionalInfo, dataToSend);
+            source.SendMessageSequentially((int)MessageType.AdditionalInfo, dataToSend);
         }
     }
 }
