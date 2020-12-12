@@ -1,4 +1,4 @@
-﻿using NetworkController.DataTransferStructures.Other;
+﻿using NetworkController.DataTransferStructures;
 using NetworkController.Encryption;
 using NetworkController.Models;
 using NetworkController.UDP;
@@ -6,13 +6,14 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Text;
+using TransmissionComponent.Structures.Other;
 using static NetworkController.UDP.ExternalNode;
 
 namespace NetworkController.Interfaces.ForTesting
 {
     public interface IExternalNodeInternal : IExternalNode
     {
-        void HandleIncomingBytes(DataFrame dataFrame);
+        AckStatus HandleIncomingBytes(NC_DataFrame dataFrame);
 
         AsymmetricEncryptionService Aes { get; set; }
         SymmetricEncryptionService Ses { get; set; }
@@ -20,9 +21,6 @@ namespace NetworkController.Interfaces.ForTesting
 
         IPEndPoint PublicEndpoint { get; set; }
         IPEndPoint ClaimedPrivateEndpoint { get; set; }
-
-        void SendBytes(int type, byte[] payloadOfDataFrame, IPEndPoint endpoint, bool ensureDelivered);
-        void SendReceiveAcknowledge(uint retransmissionId, AckStatus status);
 
         new ConnectionState CurrentState { get; set; }
 
@@ -34,8 +32,6 @@ namespace NetworkController.Interfaces.ForTesting
         void ReportIncomingPingResponse();
         void ReportConnectionFailure();
         void ReportThatConnectionIsSetUp();
-
-        void ResetMessageCounter(uint newSendingId, uint newHighestReceivedId);
 
         new bool IsHandshakeCompleted { get; set; }
 

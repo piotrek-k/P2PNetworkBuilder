@@ -1,7 +1,7 @@
-﻿using NetworkController.DataTransferStructures.Other;
-using NetworkController.Models;
+﻿using NetworkController.Models;
 using System;
 using System.Net;
+using TransmissionComponent.Structures.Other;
 using static NetworkController.UDP.ExternalNode;
 
 namespace NetworkController.Interfaces
@@ -15,16 +15,18 @@ namespace NetworkController.Interfaces
         /// <summary>
         /// Send bytes to endpoint. Guaranteed to be delivered.
         /// </summary>
-        /// <param name="type">MessageType enum</param>
-        /// <param name="bytes">Payload to send to Node</param>
+        /// <param name="messageType">MessageType enum</param>
+        /// <param name="payload">Payload to send to Node</param>
         /// <param name="callback">Function that will be called after receiving data arrival acknowledge from another node</param>
-        void SendBytes(int type, byte[] bytes, Action<AckStatus> callback = null);
+        void SendMessageSequentially(int messageType, byte[] payload, Action<AckStatus> callback = null);
+        void SendMessageNonSequentially(int messageType, byte[] payload, Action<AckStatus> callback = null);
+        void SendMessageNonSequentially(int messageType, byte[] payload, IPEndPoint customEndpoint, Action<AckStatus> callback = null);
         /// <summary>
         /// Send message without tracking and delivery check. Works like UDP diagram.
         /// </summary>
         /// <param name="type">MessageType enum</param>
         /// <param name="payloadOfDataFrame"></param>
-        void SendAndForget(int type, byte[] payloadOfDataFrame);
+        void SendAndForget(int type, byte[] payloadOfDataFrame, IPEndPoint customEndpoint = null);
         /// <summary>
         /// Called when message that was not handled by NetworkController arrives.
         /// Can be used for handling higher-layer network messages.

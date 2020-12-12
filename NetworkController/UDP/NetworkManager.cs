@@ -1,5 +1,7 @@
 ﻿using ConnectionsManager.Debugging;
 using Microsoft.Extensions.Logging;
+using NetworkController.DataTransferStructures;
+using NetworkController.Helpers;
 using NetworkController.Interfaces;
 using NetworkController.Interfaces.ForTesting;
 using NetworkController.Models;
@@ -220,7 +222,7 @@ namespace NetworkController.UDP
 
             var connTracker = _tracker.NewSession();
 
-            ExternalNode en = new ExternalNode(id, this, _logger, connTracker);
+            ExternalNode en = new ExternalNode(id, this, _logger, connTracker, transmissionController);
             _knownNodes.Add(en);
             _logger.LogInformation($"New node added. Number of external nodes: {_knownNodes.Count}");
 
@@ -275,13 +277,21 @@ namespace NetworkController.UDP
                             node.FillCurrentEndpoint(senderIpEndPoint);
                         }
 
+                        NC_DataFrame ncdf = NC_DataFrame.Unpack(df.Payload);
+
+                        if (!MessageTypeGroups.IsKeepaliveNoLogicRelatedMessage(ncdf.MessageType))
+                        {
+                            _logger.LogDebug($"{node.Id} \t Incoming: {GetMessageName(ncdf.MessageType) + " transm. id: " + df.RetransmissionId}");
+                        }
+
                         try
                         {
-                            node.HandleIncomingBytes(df);
+                            node.HandleIncomingBytes(ncdf);
                         }
-                        catch (Exception)
+                        catch (Exception e)
                         {
-                            // ignore errors, all already handled
+                            _logger.LogError($"Error while processing message number {df.RetransmissionId} of type" +
+                                $" {GetMessageName((int)ncdf.MessageType)}({(int)ncdf.MessageType}). {e.Message}");
                         }
                     }
                     else
@@ -290,7 +300,27 @@ namespace NetworkController.UDP
                     }
                 }
 
+                return TransmissionComponent.Structures.Other.AckStatus.Failure;
+
             };
+        }
+
+        private string GetMessageName(int msgId)
+        {
+            foreach (var t in GetMessageTypes())
+            {
+                try
+                {
+                    var name = Enum.GetName(t, msgId);
+                    if (name != null)
+                        return name;
+                }
+                catch (Exception)
+                {
+                }
+            }
+
+            return null;
         }
 
         /// <param name="initializeConnection">True begins handshaking. Set to false if you already have security keys</param>
@@ -302,7 +332,7 @@ namespace NetworkController.UDP
             ExternalNode foundEndpoint = _knownNodes.FirstOrDefault(x => x.CurrentEndpoint == endpoint);
             if (foundEndpoint == null)
             {
-                en = new ExternalNode(endpoint, this, _logger, connTracker);
+                en = new ExternalNode(endpoint, this, _logger, connTracker, transmissionController);
                 _knownNodes.Add(en);
                 _logger.LogInformation($"New node added. Number of external nodes: {_knownNodes.Count}");
 
