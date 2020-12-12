@@ -41,7 +41,7 @@ namespace TransmissionComponent
             {
                 if (df.RetransmissionId == NextExpectedIncomingMessageId)
                 {
-                    ProcessMessage(df, senderIpEndPoint);
+                    ProcessMessageAndSendAck(df, senderIpEndPoint);
 
                     SetCounterToNextValue();
                 }
@@ -62,7 +62,7 @@ namespace TransmissionComponent
                 )
                 && !ProcessedMessages.Contains(df.RetransmissionId))
             {
-                ProcessMessage(df, senderIpEndPoint);
+                ProcessMessageAndSendAck(df, senderIpEndPoint);
 
                 if (df.RetransmissionId == NextExpectedIncomingMessageId)
                 {
@@ -73,15 +73,17 @@ namespace TransmissionComponent
                     ProcessedMessages.Add(df.RetransmissionId);
                 }
             }
+            else if (df.RetransmissionId == 0 && !df.ExpectAcknowledge)
+            {
+                // Message sent by SendAndForget method
+
+                ProcessMessage(df, senderIpEndPoint);
+            }
         }
 
-        private void ProcessMessage(DataFrame df, IPEndPoint callbackEndpoint)
+        private void ProcessMessageAndSendAck(DataFrame df, IPEndPoint callbackEndpoint)
         {
-            AckStatus result = _euc.OnNewMessageReceived(new NewMessageEventArgs
-            {
-                DataFrame = df,
-                SenderIPEndpoint = callbackEndpoint
-            });
+            AckStatus result = ProcessMessage(df, callbackEndpoint);
 
             var ra = new ReceiveAcknowledge()
             {
@@ -89,6 +91,15 @@ namespace TransmissionComponent
             }.PackToBytes();
 
             _euc.SendReceiveAck(callbackEndpoint, ra, _deviceId, df.RetransmissionId);
+        }
+
+        private AckStatus ProcessMessage(DataFrame df, IPEndPoint callbackEndpoint)
+        {
+            return _euc.OnNewMessageReceived(new NewMessageEventArgs
+            {
+                DataFrame = df,
+                SenderIPEndpoint = callbackEndpoint
+            });
         }
 
         private void SetCounterToNextValue()
@@ -133,7 +144,7 @@ namespace TransmissionComponent
 
                 if (wm != null)
                 {
-                    ProcessMessage(wm.DataFrame, wm.Sender);
+                    ProcessMessageAndSendAck(wm.DataFrame, wm.Sender);
 
                     SetCounterToNextValue();
 

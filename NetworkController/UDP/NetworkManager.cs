@@ -279,7 +279,16 @@ namespace NetworkController.UDP
                             node.FillCurrentEndpoint(senderIpEndPoint);
                         }
 
-                        NC_DataFrame ncdf = NC_DataFrame.Unpack(df.Payload);
+                        NC_DataFrame ncdf;
+                        if (df.Payload != null)
+                        {
+                            ncdf = NC_DataFrame.Unpack(df.Payload);
+                        }
+                        else
+                        {
+                            ncdf = new NC_DataFrame();
+                        }
+                       
 
                         if (!MessageTypeGroups.IsKeepaliveNoLogicRelatedMessage(ncdf.MessageType))
                         {
