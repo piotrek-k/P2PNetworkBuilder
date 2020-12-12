@@ -139,20 +139,6 @@ namespace NetworkController.UDP
         /// <summary>
         /// Class for sending messages and ensuring it was properly delivered
         /// </summary>
-        //private ITransmissionManager TransmissionManager
-        //{
-        //    get { return _tansmissionManager; }
-        //    set
-        //    {
-        //        if (!transmissionManagerWasPreset)
-        //        {
-        //            _tansmissionManager = value;
-        //        }
-        //    }
-        //}
-        //private ITransmissionManager _tansmissionManager;
-        //private bool transmissionManagerWasPreset = false;
-
         private ITransmissionHandler _transmissionHandler;
 
         /// <summary>

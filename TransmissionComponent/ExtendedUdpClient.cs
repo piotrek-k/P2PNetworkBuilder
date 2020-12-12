@@ -30,7 +30,7 @@ namespace TransmissionComponent
         /// <summary>
         /// Id that will be assigned to next sent message
         /// </summary>
-        internal int NextSentMessageId = 0;
+        internal int NextSentMessageId = 1;
 
         /// <summary>
         /// Stores `KnownSource` class instance for each Guid that ever appeared in any incoming message
@@ -97,32 +97,48 @@ namespace TransmissionComponent
 
             if (df.ReceiveAck)
             {
+                TrackedMessage tm;
+                AckStatus status = AckStatus.Failure; // failure by default
+
                 lock (trackedMessagesLock)
                 {
-                    TrackedMessage tm;
-                    AckStatus status = AckStatus.Failure; // failure by default
-
                     TrackedMessages.TryGetValue(df.RetransmissionId, out tm);
+                }
 
-                    if (df.Payload != null)
+                if (tm == null)
+                {
+                    _logger.LogTrace($"Received ack for {df.RetransmissionId} but is not present in TrackedMessages");
+                    return;
+                }
+                _logger.LogTrace($"Received ack for {df.RetransmissionId} and processing...");
+
+                if (df.Payload != null)
+                {
+                    try
                     {
-                        try
-                        {
-                            ReceiveAcknowledge ra = ReceiveAcknowledge.Unpack(df.Payload);
-                            status = (AckStatus)ra.Status;
-                        }
-                        catch (Exception e)
-                        {
-                            _logger.LogError($"Error while handling ReceiveAck. {e.Message}");
-                        }
+                        ReceiveAcknowledge ra = ReceiveAcknowledge.Unpack(df.Payload);
+                        status = (AckStatus)ra.Status;
                     }
-
-                    if(tm != null && tm.Callback != null)
+                    catch (Exception e)
                     {
-                        tm.Callback(status);
+                        _logger.LogError($"Error while handling ReceiveAck. {e.Message}");
                     }
+                }
 
+                if (tm != null && tm.Callback != null)
+                {
+                    tm.Callback(status);
+                }
+
+                lock (trackedMessagesLock)
+                {
                     TrackedMessages.Remove(df.RetransmissionId);
+                }
+
+                // wake up retransmission thread in order to remove it
+                lock (tm.ThreadLock)
+                {
+                    Monitor.Pulse(tm.ThreadLock);
                 }
             }
             else
@@ -132,12 +148,14 @@ namespace TransmissionComponent
 
                 if (foundSource == null)
                 {
-                    foundSource = new KnownSource(this, df.SourceNodeIdGuid);
+                    foundSource = new KnownSource(this, df.SourceNodeIdGuid, _logger);
                     KnownSources.Add(df.SourceNodeIdGuid, foundSource);
                 }
 
                 foundSource.HandleNewMessage(senderIpEndPoint, df);
             }
+
+            udpClient.BeginReceive(new AsyncCallback(HandleIncomingMessages), null);
         }
 
         /// <summary>
@@ -178,10 +196,12 @@ namespace TransmissionComponent
 
             udpClient.Send(bytes, bytes.Length, endPoint);
 
+            _logger.LogTrace($"Sent message with retr. id: {dataFrame.RetransmissionId}");
+
             TrackedMessage tm = new TrackedMessage(bytes, endPoint, callback);
             TrackedMessages.Add(NextSentMessageId, tm);
 
-            Thread thread = new Thread(() => RetransmissionThread(NextSentMessageId, tm));
+            Thread thread = new Thread(() => RetransmissionThread(dataFrame.RetransmissionId, tm));
             thread.IsBackground = true;
             thread.Start();
 
@@ -238,11 +258,15 @@ namespace TransmissionComponent
                 throw new Exception($"Data packet of size {bytes.Length} exceeded maximal allowed size ({MaxPacketSize})");
             }
 
+            _logger.LogDebug($"Sent ReceiveAck for {messageId}");
+
             udpClient.Send(bytes, bytes.Length, endPoint);
         }
 
         internal void RetransmissionThread(int messageId, TrackedMessage tm)
         {
+            _logger.LogDebug($"Began retransmissionThread of {messageId}");
+
             bool messageReceived = false;
             do
             {
@@ -254,14 +278,18 @@ namespace TransmissionComponent
                 lock (trackedMessagesLock)
                 {
                     messageReceived = !TrackedMessages.ContainsKey(messageId);
-
-                    if (messageReceived)
-                        break;
                 }
 
+                if (messageReceived)
+                {
+                    _logger.LogTrace($"Stopping retransmission of {messageId}");
+                    break;
+                }
+
+                _logger.LogTrace($"Retransmission of {messageId}");
                 udpClient.Send(tm.Contents, tm.Contents.Length, tm.Endpoint);
 
-            } while (messageReceived);
+            } while (!messageReceived);
         }
     }
 }

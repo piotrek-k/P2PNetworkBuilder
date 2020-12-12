@@ -72,7 +72,12 @@ namespace NetworkBuilderDemo
                     if (currentKey.Key == ConsoleKey.S && currentNode != null)
                     {
                         Console.WriteLine("Sending...");
-                        currentNode.SendBytes(100, new byte[] { 0, 1, 2, 3, 4, 5 });
+                        currentNode.SendMessageSequentially(100, new byte[] { 0, 1, 2, 3, 4, 5 });
+                    }
+                    else if (currentKey.Key == ConsoleKey.D && currentNode != null)
+                    {
+                        Console.WriteLine("Sending...");
+                        currentNode.SendMessageNonSequentially(101, new byte[] { 0, 1, 2, 3, 4, 5 });
                     }
                     else if (currentKey.Key == ConsoleKey.N)
                     {

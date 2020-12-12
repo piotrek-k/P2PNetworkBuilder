@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using TransmissionComponent.Structures;
@@ -11,6 +12,7 @@ namespace TransmissionComponent
         internal int NextExpectedIncomingMessageId = 1;
         private ExtendedUdpClient _euc;
         private Guid _deviceId;
+        private ILogger _logger;
 
         internal class WaitingMessage
         {
@@ -21,10 +23,11 @@ namespace TransmissionComponent
         internal SortedList<int, WaitingMessage> WaitingMessages { get; private set; } = new SortedList<int, WaitingMessage>();
         internal HashSet<int> ProcessedMessages { get; private set; } = new HashSet<int>();
 
-        public KnownSource(ExtendedUdpClient euc, Guid deviceId)
+        public KnownSource(ExtendedUdpClient euc, Guid deviceId, ILogger logger)
         {
             _euc = euc;
             _deviceId = deviceId;
+            _logger = logger;
         }
 
         /// <summary>

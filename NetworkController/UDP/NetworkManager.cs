@@ -165,6 +165,8 @@ namespace NetworkController.UDP
             _logger = logger;
             _tracker = tracker;
             RegisterMessageTypeEnum(typeof(MessageType));
+
+            transmissionController = new ExtendedUdpClient(_logger);
         }
 
         public NetworkManager(ILogger logger, NetworkBehaviourTracker tracker, Guid enforceId) : this(logger, tracker)
