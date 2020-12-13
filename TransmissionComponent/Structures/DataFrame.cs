@@ -87,9 +87,9 @@ namespace TransmissionComponent.Structures
         //[TreatZerosLikeNull]
         //public byte[] IV { get; set; }
 
-        [ValueToPack(6)]
-        [FixedSize(4)]
-        public int PayloadSize { get; set; }
+        //[ValueToPack(6)]
+        //[FixedSize(4)]
+        //public int PayloadSize { get; set; }
 
         /// <summary>
         /// Data sent in frame

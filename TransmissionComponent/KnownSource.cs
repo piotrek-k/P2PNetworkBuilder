@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using TransmissionComponent.Structures;
@@ -8,9 +9,12 @@ namespace TransmissionComponent
 {
     internal class KnownSource
     {
-        internal int NextExpectedIncomingMessageId = 1;
+        internal int NextExpectedIncomingMessageId { get; private set; } = 1;
+        internal int NextIdForMessageToSend { get; private set; } = 1;
+
         private ExtendedUdpClient _euc;
         private Guid _deviceId;
+        private ILogger _logger;
 
         internal class WaitingMessage
         {
@@ -18,13 +22,23 @@ namespace TransmissionComponent
             public IPEndPoint Sender { get; set; }
         }
 
-        internal SortedList<int, WaitingMessage> WaitingMessages { get; private set; } = new SortedList<int, WaitingMessage>();
+        internal SortedList<int, WaitingMessage> WaitingIncomingMessages { get; private set; } = new SortedList<int, WaitingMessage>();
         internal HashSet<int> ProcessedMessages { get; private set; } = new HashSet<int>();
 
-        public KnownSource(ExtendedUdpClient euc, Guid deviceId)
+        /// <summary>
+        /// Stores messages that were sent, but receiver haven't sent back acknowledge yet
+        /// </summary>
+        internal Dictionary<int, TrackedMessage> TrackedOutgoingMessages { get; private set; } = new Dictionary<int, TrackedMessage>();
+        /// <summary>
+        /// Lock that keeps TrackedMessages thread-safe
+        /// </summary>
+        internal object trackedMessagesLock = new object();
+
+        public KnownSource(ExtendedUdpClient euc, Guid deviceId, ILogger logger)
         {
             _euc = euc;
             _deviceId = deviceId;
+            _logger = logger;
         }
 
         /// <summary>
@@ -38,18 +52,26 @@ namespace TransmissionComponent
             {
                 if (df.RetransmissionId == NextExpectedIncomingMessageId)
                 {
-                    ProcessMessage(df, senderIpEndPoint);
+                    ProcessMessageAndSendAck(df, senderIpEndPoint);
 
-                    SetCounterToNextValue();
+                    SetExpectedIncomingMessageCounterToNextValue();
                 }
                 else if ((NextExpectedIncomingMessageId > 0 && df.RetransmissionId > NextExpectedIncomingMessageId) ||
                     (NextExpectedIncomingMessageId < 0 && df.RetransmissionId < NextExpectedIncomingMessageId))
                 {
-                    WaitingMessages.Add(df.RetransmissionId, new WaitingMessage
+                    _logger.LogDebug($"Received {df.RetransmissionId} but expected {NextExpectedIncomingMessageId}. Message postponed.");
+                    try
                     {
-                        DataFrame = df,
-                        Sender = senderIpEndPoint
-                    });
+                        WaitingIncomingMessages.Add(df.RetransmissionId, new WaitingMessage
+                        {
+                            DataFrame = df,
+                            Sender = senderIpEndPoint
+                        });
+                    }
+                    catch (ArgumentException)
+                    {
+                        // seems to be a retransmission
+                    }
                 }
             }
             else if (
@@ -59,35 +81,51 @@ namespace TransmissionComponent
                 )
                 && !ProcessedMessages.Contains(df.RetransmissionId))
             {
-                ProcessMessage(df, senderIpEndPoint);
+                ProcessMessageAndSendAck(df, senderIpEndPoint);
 
                 if (df.RetransmissionId == NextExpectedIncomingMessageId)
                 {
-                    SetCounterToNextValue();
+                    SetExpectedIncomingMessageCounterToNextValue();
                 }
                 else
                 {
                     ProcessedMessages.Add(df.RetransmissionId);
                 }
             }
+            else if (df.RetransmissionId == 0 && !df.ExpectAcknowledge)
+            {
+                // Message sent by SendAndForget method
+
+                ProcessMessage(df, senderIpEndPoint);
+            }
+            else
+            {
+                throw new Exception("Don't know how to handle this message");
+            }
         }
 
-        private void ProcessMessage(DataFrame df, IPEndPoint callbackEndpoint)
+        private void ProcessMessageAndSendAck(DataFrame df, IPEndPoint callbackEndpoint)
         {
-            AckStatus result = _euc.OnNewMessageReceived(new NewMessageEventArgs
-            {
-                DataFrame = df
-            });
+            AckStatus result = ProcessMessage(df, callbackEndpoint);
 
             var ra = new ReceiveAcknowledge()
             {
                 Status = (int)result
             }.PackToBytes();
 
-            _euc.SendReceiveAck(callbackEndpoint, ra, _deviceId, df.RetransmissionId);
+            _euc.SendReceiveAck(callbackEndpoint, ra, _euc.DeviceId, df.RetransmissionId);
         }
 
-        private void SetCounterToNextValue()
+        private AckStatus ProcessMessage(DataFrame df, IPEndPoint callbackEndpoint)
+        {
+            return _euc.OnNewMessageReceived(new NewMessageEventArgs
+            {
+                DataFrame = df,
+                SenderIPEndpoint = callbackEndpoint
+            });
+        }
+
+        private void SetExpectedIncomingMessageCounterToNextValue()
         {
             checked
             {
@@ -118,6 +156,35 @@ namespace TransmissionComponent
             SequentiallyProcessNextWaitingMessages();
         }
 
+        internal void SetIdForMessageToSendToNextValue()
+        {
+            checked
+            {
+                try
+                {
+                    if (NextIdForMessageToSend > 0)
+                    {
+                        NextIdForMessageToSend += 1;
+                    }
+                    else
+                    {
+                        NextIdForMessageToSend -= 1;
+                    }
+                }
+                catch (OverflowException)
+                {
+                    if (NextIdForMessageToSend > 0)
+                    {
+                        NextIdForMessageToSend = 1;
+                    }
+                    else
+                    {
+                        NextIdForMessageToSend = -1;
+                    }
+                }
+            }
+        }
+
         private void SequentiallyProcessNextWaitingMessages()
         {
             WaitingMessage wm;
@@ -125,13 +192,13 @@ namespace TransmissionComponent
             do
             {
                 shouldContinue = false;
-                wm = WaitingMessages.GetValueOrDefault(NextExpectedIncomingMessageId);
+                WaitingIncomingMessages.TryGetValue(NextExpectedIncomingMessageId, out wm);
 
                 if (wm != null)
                 {
-                    ProcessMessage(wm.DataFrame, wm.Sender);
+                    ProcessMessageAndSendAck(wm.DataFrame, wm.Sender);
 
-                    SetCounterToNextValue();
+                    SetExpectedIncomingMessageCounterToNextValue();
 
                     shouldContinue = true;
                 }
@@ -139,20 +206,30 @@ namespace TransmissionComponent
                 {
                     ProcessedMessages.Remove(NextExpectedIncomingMessageId);
 
-                    SetCounterToNextValue();
-                    
+                    SetExpectedIncomingMessageCounterToNextValue();
+
                     shouldContinue = true;
                 }
 
             } while (shouldContinue);
         }
 
-        public void ResetCounter(int expectedNextIncomingValue)
+        public void ResetIncomingMessagesCounter(int expectedNextIncomingValue)
         {
-            WaitingMessages.Clear();
+            WaitingIncomingMessages.Clear();
             ProcessedMessages.Clear();
 
             NextExpectedIncomingMessageId = expectedNextIncomingValue;
+        }
+
+        public void ResetOutgoingMessagesCounter(int expectedNextOutgoingMessageId)
+        {
+            lock (trackedMessagesLock)
+            {
+                TrackedOutgoingMessages.Clear();
+            }
+
+            NextIdForMessageToSend = expectedNextOutgoingMessageId;
         }
     }
 }

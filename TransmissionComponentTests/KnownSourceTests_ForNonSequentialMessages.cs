@@ -27,12 +27,12 @@ namespace TransmissionComponentTests
         {
             // Arrange
             Mock<IUdpClient> internetTransmissionMock = new Mock<IUdpClient>();
-            Mock<ExtendedUdpClient> udpClientMock = new Mock<ExtendedUdpClient>(internetTransmissionMock.Object, _logger);
-            KnownSource knownSource = new KnownSource(udpClientMock.Object, Guid.NewGuid());
-            IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000);
             Guid sourceId = Guid.NewGuid();
+            Mock<ExtendedUdpClient> udpClientMock = new Mock<ExtendedUdpClient>(internetTransmissionMock.Object, _logger, Guid.NewGuid());
+            KnownSource knownSource = new KnownSource(udpClientMock.Object, Guid.NewGuid(), _logger);
+            IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000);
 
-            knownSource.NextExpectedIncomingMessageId = 1;
+            knownSource.ResetIncomingMessagesCounter(1);
             int testedMessageId = 10;
 
             DataFrame df = new DataFrame()
@@ -57,8 +57,8 @@ namespace TransmissionComponentTests
         {
             // Arrange
             Mock<IUdpClient> internetTransmissionMock = new Mock<IUdpClient>();
-            Mock<ExtendedUdpClient> udpClientMock = new Mock<ExtendedUdpClient>(internetTransmissionMock.Object, _logger);
-            KnownSource knownSource = new KnownSource(udpClientMock.Object, Guid.NewGuid());
+            Mock<ExtendedUdpClient> udpClientMock = new Mock<ExtendedUdpClient>(internetTransmissionMock.Object, _logger, Guid.NewGuid());
+            KnownSource knownSource = new KnownSource(udpClientMock.Object, Guid.NewGuid(), _logger);
             IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000);
 
             // Act

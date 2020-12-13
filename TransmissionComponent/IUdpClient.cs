@@ -8,9 +8,9 @@ namespace TransmissionComponent
 {
     public interface IUdpClient
     {
-        public Socket Client { get; set; }
+        Socket Client { get; set; }
         int Send(byte[] dgram, int bytes, IPEndPoint endPoint);
-        public IAsyncResult BeginReceive(AsyncCallback requestCallback, object state);
-        public byte[] EndReceive(IAsyncResult asyncResult, ref IPEndPoint remoteEP);
+        IAsyncResult BeginReceive(AsyncCallback requestCallback, object state);
+        byte[] EndReceive(IAsyncResult asyncResult, ref IPEndPoint remoteEP);
     }
 }

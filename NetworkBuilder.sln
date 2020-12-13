@@ -4,6 +4,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 16.0.30309.148
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetworkController", "NetworkController\NetworkController.csproj", "{FE7E1238-63F5-4088-8284-A1A5A5CAF404}"
+	ProjectSection(ProjectDependencies) = postProject
+		{1C34BEA3-5DF2-405D-B39A-2B47C79E107E} = {1C34BEA3-5DF2-405D-B39A-2B47C79E107E}
+	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetworkBuilderDemo", "NetworkBuilderDemo\NetworkBuilderDemo.csproj", "{97541A36-A135-4290-9FC1-1958E50485C6}"
 EndProject
@@ -13,7 +16,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetworkBuilderServer", "Net
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TransmissionComponent", "TransmissionComponent\TransmissionComponent.csproj", "{1C34BEA3-5DF2-405D-B39A-2B47C79E107E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TransmissionComponentTests", "TransmissionComponentTests\TransmissionComponentTests.csproj", "{4C04A90B-6463-4C36-AB95-0D9861EA16CF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TransmissionComponentTests", "TransmissionComponentTests\TransmissionComponentTests.csproj", "{4C04A90B-6463-4C36-AB95-0D9861EA16CF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

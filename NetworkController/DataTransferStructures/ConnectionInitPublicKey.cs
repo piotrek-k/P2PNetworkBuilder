@@ -2,13 +2,14 @@
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
+using TransmissionComponent.Structures.Packers;
 
 namespace NetworkController.DataTransferStructures
 {
     [Serializable]
     public class ConnectionInitPublicKey : ConvertableToBytes<ConnectionInitPublicKey>
     {
-        public uint? ProposedStartingRetransmissionId { get; set; }
+        public int? RespondWithThisId { get; set; }
 
         // TODO: remove manual RSAParamters creation
 

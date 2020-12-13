@@ -1,5 +1,7 @@
 ﻿using ConnectionsManager.Debugging;
 using Microsoft.Extensions.Logging;
+using NetworkController.DataTransferStructures;
+using NetworkController.Helpers;
 using NetworkController.Interfaces;
 using NetworkController.Interfaces.ForTesting;
 using NetworkController.Models;
@@ -10,6 +12,7 @@ using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using TransmissionComponent;
 
 namespace NetworkController.UDP
 {
@@ -17,7 +20,7 @@ namespace NetworkController.UDP
     {
         public Guid DeviceId { get; set; } = Guid.NewGuid();
         public int ListenerPort { get; set; }
-        private UdpClient udpClient;
+        private ITransmissionHandler transmissionController;
         private readonly ILogger _logger;
 
         private List<ExternalNode> _knownNodes = new List<ExternalNode>();
@@ -44,7 +47,17 @@ namespace NetworkController.UDP
 
         public event EventHandler NetworkChanged;
 
-        public int MaxPacketSize { get; internal set; } = 65407;
+        public int MaxPacketSize
+        {
+            get
+            {
+                return transmissionController.MaxPacketSize;
+            }
+            internal set
+            {
+                transmissionController.MaxPacketSize = value;
+            }
+        }
 
         public virtual void OnNetworkChangedEvent(EventArgs e)
         {
@@ -135,7 +148,8 @@ namespace NetworkController.UDP
 
         public int DevicePort
         {
-            get { return ((IPEndPoint)udpClient.Client.LocalEndPoint).Port; }
+            //get { return ((IPEndPoint)udpClient.Client.LocalEndPoint).Port; }
+            get { return ListenerPort; } // TODO: remove?
         }
 
         public IPEndPoint DeviceEndpoint
@@ -146,17 +160,17 @@ namespace NetworkController.UDP
             }
         }
 
-        public NetworkManager(ILogger logger, NetworkBehaviourTracker tracker)
+        public NetworkManager(ILogger logger, NetworkBehaviourTracker tracker, Guid? enforceId = null)
         {
             _logger = logger;
             _tracker = tracker;
             RegisterMessageTypeEnum(typeof(MessageType));
-        }
 
-        public NetworkManager(ILogger logger, NetworkBehaviourTracker tracker, Guid enforceId) : this(logger, tracker)
-        {
-            DeviceId = enforceId;
-            logger.LogInformation($"Device Id set to {DeviceId}");
+            if(enforceId != null)
+            {
+                DeviceId = enforceId.Value;
+                logger.LogInformation($"Device Id set to {DeviceId}");
+            }
         }
 
         public void RegisterPersistentNodeStorage(IPersistentNodeStorage storage)
@@ -208,7 +222,7 @@ namespace NetworkController.UDP
 
             var connTracker = _tracker.NewSession();
 
-            ExternalNode en = new ExternalNode(id, this, _logger, connTracker);
+            ExternalNode en = new ExternalNode(id, this, _logger, connTracker, transmissionController);
             _knownNodes.Add(en);
             _logger.LogInformation($"New node added. Number of external nodes: {_knownNodes.Count}");
 
@@ -220,24 +234,103 @@ namespace NetworkController.UDP
         public void StartListening(int port = 13000)
         {
             ListenerPort = port;
-            udpClient = new UdpClient(ListenerPort);
 
-            // Related to closing "UDP connection" issue
-            const int SIO_UDP_CONNRESET = -1744830452;
-            try
+            transmissionController = new ExtendedUdpClient(_logger, DeviceId);
+            transmissionController.StartListening(port);
+
+            transmissionController.NewIncomingMessage = (newMsgEventArgs) =>
             {
-                udpClient.Client.IOControl(
-                    (IOControlCode)SIO_UDP_CONNRESET,
-                    new byte[] { 0, 0, 0, 0 },
-                    null
-                );
-            }
-            catch (Exception)
+                var df = newMsgEventArgs.DataFrame;
+                var senderIpEndPoint = newMsgEventArgs.SenderIPEndpoint;
+
+                if (Blacklist.Contains(df.SourceNodeIdGuid))
+                {
+                    _logger.LogInformation("Rejected message from blacklisted device");
+                }
+                else
+                {
+
+                    IExternalNodeInternal node = _knownNodes.FirstOrDefault(x => x.Id == df.SourceNodeIdGuid);
+
+                    if (node == null)
+                    {
+                        // Possibly used manual connection and id is not yet known
+                        node = _knownNodes.FirstOrDefault(x =>
+                            (x.Id == null || x.Id == Guid.Empty) && x.CurrentEndpoint.Equals(senderIpEndPoint));
+
+                        if (node != null)
+                        {
+                            node.SetId(df.SourceNodeIdGuid);
+                        }
+                    }
+
+                    if (node == null && NewUnannouncedConnectionAllowanceRule(df.SourceNodeIdGuid))
+                    {
+                        node = AddNode(df.SourceNodeIdGuid);
+                        node.PublicEndpoint = senderIpEndPoint;
+                    }
+
+                    if (node != null)
+                    {
+                        if (node.CurrentEndpoint == null ||
+                            (!node.CurrentEndpoint.Equals(senderIpEndPoint) && node.CurrentState != ExternalNode.ConnectionState.Ready))
+                        {
+                            node.FillCurrentEndpoint(senderIpEndPoint);
+                        }
+
+                        NC_DataFrame ncdf;
+                        if (df.Payload != null)
+                        {
+                            ncdf = NC_DataFrame.Unpack(df.Payload);
+                        }
+                        else
+                        {
+                            ncdf = new NC_DataFrame();
+                        }
+                       
+
+                        if (!MessageTypeGroups.IsKeepaliveNoLogicRelatedMessage(ncdf.MessageType))
+                        {
+                            _logger.LogDebug($"{node.Id} \t Incoming: {GetMessageName(ncdf.MessageType) + " transm. id: " + df.RetransmissionId}");
+                        }
+
+                        try
+                        {
+                            node.HandleIncomingBytes(ncdf);
+                        }
+                        catch (Exception e)
+                        {
+                            _logger.LogError($"Error while processing message number {df.RetransmissionId} of type" +
+                                $" {GetMessageName((int)ncdf.MessageType)}({(int)ncdf.MessageType}). {e.Message}");
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Node rejected. Incoming bytes not handled");
+                    }
+                }
+
+                return TransmissionComponent.Structures.Other.AckStatus.Failure;
+
+            };
+        }
+
+        private string GetMessageName(int msgId)
+        {
+            foreach (var t in GetMessageTypes())
             {
-                _logger.LogTrace("Couldn't set IOControl. Ignore if not working on Windows");
+                try
+                {
+                    var name = Enum.GetName(t, msgId);
+                    if (name != null)
+                        return name;
+                }
+                catch (Exception)
+                {
+                }
             }
 
-            udpClient.BeginReceive(new AsyncCallback(handleIncomingMessages), null);
+            return null;
         }
 
         /// <param name="initializeConnection">True begins handshaking. Set to false if you already have security keys</param>
@@ -249,7 +342,7 @@ namespace NetworkController.UDP
             ExternalNode foundEndpoint = _knownNodes.FirstOrDefault(x => x.CurrentEndpoint == endpoint);
             if (foundEndpoint == null)
             {
-                en = new ExternalNode(endpoint, this, _logger, connTracker);
+                en = new ExternalNode(endpoint, this, _logger, connTracker, transmissionController);
                 _knownNodes.Add(en);
                 _logger.LogInformation($"New node added. Number of external nodes: {_knownNodes.Count}");
 
@@ -274,82 +367,18 @@ namespace NetworkController.UDP
             return en;
         }
 
-        public void SendBytes(byte[] data, IPEndPoint destination)
-        {
-            try
-            {
-                if (data.Length > MaxPacketSize)
-                {
-                    throw new Exception($"Data packet of size {data.Length} exceeded maximal allowed size ({MaxPacketSize})");
-                }
+        //public void SendBytes(byte[] data, IPEndPoint destination)
+        //{
+        //    try
+        //    {
+        //        transmissionController.SendMessageSequentially(destination, data, DeviceId);
+        //    }
+        //    catch (SocketException e)
+        //    {
+        //        // possible "The requested address is not valid in its context"
 
-                udpClient.Send(data, data.Length, destination);
-            }
-            catch (SocketException e)
-            {
-                // possible "The requested address is not valid in its context"
-
-                _logger.LogError($"Couldn't SendBytes. Destination: {destination}. Reason: {e.Message}");
-            }
-        }
-
-        private void handleIncomingMessages(IAsyncResult ar)
-        {
-            IPEndPoint senderIpEndPoint = new IPEndPoint(0, 0);
-            var receivedData = udpClient.EndReceive(ar, ref senderIpEndPoint);
-            DataFrame df = DataFrame.Unpack(receivedData);
-
-            if (Blacklist.Contains(df.SourceNodeIdGuid))
-            {
-                _logger.LogInformation("Rejected message from blacklisted device");
-            }
-            else
-            {
-
-                IExternalNodeInternal node = _knownNodes.FirstOrDefault(x => x.Id == df.SourceNodeIdGuid);
-
-                if (node == null)
-                {
-                    // Possibly used manual connection and id is not yet known
-                    node = _knownNodes.FirstOrDefault(x =>
-                        (x.Id == null || x.Id == Guid.Empty) && x.CurrentEndpoint.Equals(senderIpEndPoint));
-
-                    if (node != null)
-                    {
-                        node.SetId(df.SourceNodeIdGuid);
-                    }
-                }
-
-                if (node == null && NewUnannouncedConnectionAllowanceRule(df.SourceNodeIdGuid))
-                {
-                    node = AddNode(df.SourceNodeIdGuid);
-                    node.PublicEndpoint = senderIpEndPoint;
-                }
-
-                if (node != null)
-                {
-                    if (node.CurrentEndpoint == null || 
-                        (!node.CurrentEndpoint.Equals(senderIpEndPoint) && node.CurrentState != ExternalNode.ConnectionState.Ready))
-                    {
-                        node.FillCurrentEndpoint(senderIpEndPoint);
-                    }
-
-                    try
-                    {
-                        node.HandleIncomingBytes(df);
-                    }
-                    catch (Exception)
-                    {
-                        // ignore errors, all already handled
-                    }
-                }
-                else
-                {
-                    _logger.LogWarning("Node rejected. Incoming bytes not handled");
-                }
-            }
-
-            udpClient.BeginReceive(new AsyncCallback(handleIncomingMessages), null);
-        }
+        //        _logger.LogError($"Couldn't SendBytes. Destination: {destination}. Reason: {e.Message}");
+        //    }
+        //}
     }
 }

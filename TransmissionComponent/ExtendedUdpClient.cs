@@ -15,22 +15,14 @@ namespace TransmissionComponent
     {
         private IUdpClient udpClient;
         private ILogger _logger;
+        public Guid DeviceId { get; private set; }
 
         public uint WaitingTimeBetweenRetransmissions { get; set; } = 2000;
 
         /// <summary>
-        /// Stores messages that were sent, but receiver haven't sent back acknowledge yet
-        /// </summary>
-        internal Dictionary<int, TrackedMessage> TrackedMessages { get; private set; } = new Dictionary<int, TrackedMessage>();
-        /// <summary>
-        /// Lock that keeps TrackedMessages thread-safe
-        /// </summary>
-        internal object trackedMessagesLock = new object();
-
-        /// <summary>
         /// Id that will be assigned to next sent message
         /// </summary>
-        internal int NextSentMessageId = 0;
+        //internal int NextSentMessageId = 1;
 
         /// <summary>
         /// Stores `KnownSource` class instance for each Guid that ever appeared in any incoming message
@@ -51,12 +43,15 @@ namespace TransmissionComponent
             throw new Exception("Message not processed. No listener.");
         }
 
-        public ExtendedUdpClient(ILogger logger)
+        public int MaxPacketSize { get; set; } = 65407;
+
+        public ExtendedUdpClient(ILogger logger, Guid deviceId)
         {
             _logger = logger;
+            DeviceId = deviceId;
         }
 
-        public ExtendedUdpClient(IUdpClient udpClientInstance, ILogger logger) : this(logger)
+        public ExtendedUdpClient(IUdpClient udpClientInstance, ILogger logger, Guid deviceId) : this(logger, deviceId)
         {
             udpClient = udpClientInstance;
         }
@@ -65,7 +60,7 @@ namespace TransmissionComponent
         /// Begins listening for incoming messages on specified port
         /// </summary>
         /// <param name="port"></param>
-        public void StartListening(int port = 13000)
+        public void StartListening(int port)
         {
             udpClient = new UdpClientAdapter(port);
 
@@ -92,50 +87,82 @@ namespace TransmissionComponent
             IPEndPoint senderIpEndPoint = new IPEndPoint(0, 0);
             var receivedData = udpClient.EndReceive(ar, ref senderIpEndPoint);
             DataFrame df = DataFrame.Unpack(receivedData);
+            KnownSource foundSource = FindOrCreateSource(df.SourceNodeIdGuid);
 
             if (df.ReceiveAck)
             {
-                lock (trackedMessagesLock)
+                TrackedMessage tm;
+                AckStatus status = AckStatus.Failure; // failure by default
+
+                lock (foundSource.trackedMessagesLock)
                 {
-                    TrackedMessage tm;
-                    AckStatus status = AckStatus.Failure; // failure by default
+                    foundSource.TrackedOutgoingMessages.TryGetValue(df.RetransmissionId, out tm);
+                }
 
-                    TrackedMessages.TryGetValue(df.RetransmissionId, out tm);
+                if (tm == null)
+                {
+                    _logger.LogTrace($"Received ack for {df.RetransmissionId} but is not present in TrackedMessages (key: {df.SourceNodeIdGuid})");
+                    return;
+                }
+                _logger.LogTrace($"Received ack for {df.RetransmissionId} and processing...");
 
-                    if (df.Payload != null)
+                if (df.Payload != null)
+                {
+                    try
                     {
-                        try
-                        {
-                            ReceiveAcknowledge ra = ReceiveAcknowledge.Unpack(df.Payload);
-                            status = (AckStatus)ra.Status;
-                        }
-                        catch (Exception e)
-                        {
-                            _logger.LogError($"Error while handling ReceiveAck. {e.Message}");
-                        }
+                        ReceiveAcknowledge ra = ReceiveAcknowledge.Unpack(df.Payload);
+                        status = (AckStatus)ra.Status;
                     }
-
-                    if(tm != null && tm.Callback != null)
+                    catch (Exception e)
                     {
-                        tm.Callback(status);
+                        _logger.LogError($"Error while handling ReceiveAck. {e.Message}");
                     }
+                }
 
-                    TrackedMessages.Remove(df.RetransmissionId);
+                if (tm != null && tm.Callback != null)
+                {
+                    tm.Callback(status);
+                }
+
+                lock (foundSource.trackedMessagesLock)
+                {
+                    foundSource.TrackedOutgoingMessages.Remove(df.RetransmissionId);
+                }
+
+                // wake up retransmission thread in order to remove it
+                lock (tm.ThreadLock)
+                {
+                    Monitor.Pulse(tm.ThreadLock);
                 }
             }
             else
             {
-                KnownSource foundSource;
-                KnownSources.TryGetValue(df.SourceNodeIdGuid, out foundSource);
-
-                if (foundSource == null)
+                try
                 {
-                    foundSource = new KnownSource(this, df.SourceNodeIdGuid);
-                    KnownSources.Add(df.SourceNodeIdGuid, foundSource);
+                    foundSource.HandleNewMessage(senderIpEndPoint, df);
                 }
-
-                foundSource.HandleNewMessage(senderIpEndPoint, df);
+                catch (Exception e)
+                {
+                    _logger.LogError($"Error while processing message. {e.Message}");
+                }
             }
+
+            udpClient.BeginReceive(new AsyncCallback(HandleIncomingMessages), null);
+        }
+
+        internal KnownSource FindOrCreateSource(Guid id)
+        {
+            KnownSource foundSource;
+            KnownSources.TryGetValue(id, out foundSource);
+
+            if (foundSource == null)
+            {
+                _logger.LogDebug($"Created new KnownSource for id {id}");
+                foundSource = new KnownSource(this, id, _logger);
+                KnownSources.Add(id, foundSource);
+            }
+
+            return foundSource;
         }
 
         /// <summary>
@@ -147,28 +174,48 @@ namespace TransmissionComponent
         /// <param name="source">Guid of this device</param>
         /// <param name="encryptionSeed"></param>
         /// <param name="callback">method that should be called after successfull delivery</param>
-        public void SendMessageSequentially(IPEndPoint endPoint, byte[] payload, Guid source, Action<AckStatus> callback = null)
+        public void SendMessageSequentially(IPEndPoint endPoint, byte[] payload, Guid source, Guid destination, Action<AckStatus> callback = null)
         {
+            SendMessage(endPoint, payload, source, destination, true, callback);
+        }
+
+        public void SendMessageNonSequentially(IPEndPoint endPoint, byte[] payload, Guid source, Guid destination, Action<AckStatus> callback = null)
+        {
+            SendMessage(endPoint, payload, source, destination, false, callback);
+        }
+
+        private void SendMessage(IPEndPoint endPoint, byte[] payload, Guid source, Guid destination, bool sequentially, Action<AckStatus> callback = null)
+        {
+            KnownSource foundSource = FindOrCreateSource(destination);
+            int retransmissionId = foundSource.NextIdForMessageToSend;
+
             var dataFrame = new DataFrame
             {
                 Payload = payload,
-                PayloadSize = payload != null ? payload.Length : 0,
                 SourceNodeIdGuid = source,
                 ExpectAcknowledge = true,
-                RetransmissionId = NextSentMessageId
+                RetransmissionId = retransmissionId,
+                SendSequentially = sequentially
             };
             var bytes = dataFrame.PackToBytes();
 
+            if (bytes.Length > MaxPacketSize)
+            {
+                throw new Exception($"Data packet of size {bytes.Length} exceeded maximal allowed size ({MaxPacketSize})");
+            }
+
             udpClient.Send(bytes, bytes.Length, endPoint);
 
-            TrackedMessage tm = new TrackedMessage(bytes, endPoint, callback);
-            TrackedMessages.Add(NextSentMessageId, tm);
+            _logger.LogTrace($"Sent message with retr. id: {dataFrame.RetransmissionId}");
 
-            Thread thread = new Thread(() => RetransmissionThread(NextSentMessageId, tm));
+            TrackedMessage tm = new TrackedMessage(bytes, endPoint, callback);
+            foundSource.TrackedOutgoingMessages.Add(retransmissionId, tm);
+
+            Thread thread = new Thread(() => RetransmissionThread(dataFrame.RetransmissionId, tm, foundSource));
             thread.IsBackground = true;
             thread.Start();
 
-            NextSentMessageId++;
+            foundSource.SetIdForMessageToSendToNextValue();
         }
 
         /// <summary>
@@ -183,12 +230,16 @@ namespace TransmissionComponent
             var dataFrame = new DataFrame
             {
                 Payload = payload,
-                PayloadSize = payload != null ? payload.Length : 0,
                 SourceNodeIdGuid = source,
                 ExpectAcknowledge = false,
                 RetransmissionId = 0
             };
             var bytes = dataFrame.PackToBytes();
+
+            if (bytes.Length > MaxPacketSize)
+            {
+                throw new Exception($"Data packet of size {bytes.Length} exceeded maximal allowed size ({MaxPacketSize})");
+            }
 
             udpClient.Send(bytes, bytes.Length, endPoint);
         }
@@ -205,7 +256,6 @@ namespace TransmissionComponent
             var dataFrame = new DataFrame
             {
                 Payload = payload,
-                PayloadSize = payload != null ? payload.Length : 0,
                 SourceNodeIdGuid = source,
                 ExpectAcknowledge = false,
                 RetransmissionId = messageId,
@@ -213,11 +263,20 @@ namespace TransmissionComponent
             };
             var bytes = dataFrame.PackToBytes();
 
+            if (bytes.Length > MaxPacketSize)
+            {
+                throw new Exception($"Data packet of size {bytes.Length} exceeded maximal allowed size ({MaxPacketSize})");
+            }
+
+            _logger.LogDebug($"Sent ReceiveAck for {messageId} from {source}");
+
             udpClient.Send(bytes, bytes.Length, endPoint);
         }
 
-        internal void RetransmissionThread(int messageId, TrackedMessage tm)
+        internal void RetransmissionThread(int messageId, TrackedMessage tm, KnownSource ks)
         {
+            _logger.LogDebug($"Began retransmissionThread of {messageId}");
+
             bool messageReceived = false;
             do
             {
@@ -226,17 +285,48 @@ namespace TransmissionComponent
                     Monitor.Wait(tm.ThreadLock, checked((int)WaitingTimeBetweenRetransmissions));
                 }
 
-                lock (trackedMessagesLock)
+                lock (ks.trackedMessagesLock)
                 {
-                    messageReceived = !TrackedMessages.ContainsKey(messageId);
-
-                    if (messageReceived)
-                        break;
+                    messageReceived = !ks.TrackedOutgoingMessages.ContainsKey(messageId);
                 }
 
+                if (messageReceived)
+                {
+                    _logger.LogTrace($"Stopping retransmission of {messageId}");
+                    break;
+                }
+
+                _logger.LogTrace($"Retransmission of {messageId}");
                 udpClient.Send(tm.Contents, tm.Contents.Length, tm.Endpoint);
 
-            } while (messageReceived);
+            } while (!messageReceived);
+        }
+
+        /// <summary>
+        /// Setting what `retransmissionId` message sent from `connectedDeviceGuid` should have
+        /// in order to reach this device
+        /// </summary>
+        /// <param name="connectedDeviceGuid"></param>
+        /// <param name="nextIdOfIncomingMessage"></param>
+        public void ResetIncomingMessageCounterFor(Guid connectedDeviceGuid, int nextIdOfIncomingMessage)
+        {
+            var source = FindOrCreateSource(connectedDeviceGuid);
+
+            source.ResetIncomingMessagesCounter(nextIdOfIncomingMessage);
+        }
+
+        public void ResetOutgoingMessageCounterFor(Guid connectedDeviceGuid, int nextIdOfOutgoingMessage)
+        {
+            var source = FindOrCreateSource(connectedDeviceGuid);
+
+            source.ResetOutgoingMessagesCounter(nextIdOfOutgoingMessage);
+        }
+
+        public int GetIncomingMessageCounterFor(Guid connectedDeviceGuid)
+        {
+            var source = FindOrCreateSource(connectedDeviceGuid);
+
+            return source.NextExpectedIncomingMessageId;
         }
     }
 }
