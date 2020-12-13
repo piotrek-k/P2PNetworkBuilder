@@ -11,7 +11,6 @@ using System.Threading;
 using System.Linq;
 using NetworkController.Threads;
 using ConnectionsManager.Debugging;
-using NetworkController.UDP.MessageHandlers;
 using NetworkController.Helpers;
 using TransmissionComponent;
 using TransmissionComponent.Structures.Other;
@@ -431,55 +430,6 @@ namespace NetworkController.UDP
                 decryptedPayload = decryptedPayload.Take(ncDataFrame.PayloadSize).ToArray();
             }
 
-            /**
-             * RESETTING COUNTER
-             */
-
-            //if (dataFrame.MessageType == (int)MessageType.ConnectionRestoreRequest)
-            //{
-            //    var data = ConnectionRestoreRequest.Unpack(dataFrame.Payload);
-
-            //    if (!data.SampleDataForEncryptionVerification.Equals(SAMPLE_ENCRYPTION_VERIFICATION_TEXT))
-            //    {
-            //        throw new Exception("Failed to properly decrypt message");
-            //    }
-            //    else
-            //    {
-            //        SendReceiveAcknowledge(dataFrame.RetransmissionId, AckStatus.Success);
-
-            //        uint newRetransmissionId = GenerateNewSafeRetransmissionId(dataFrame);
-
-            //        ResetMessageCounter(newRetransmissionId, newRetransmissionId);
-
-            //        SendBytes((int)MessageType.ConnectionRestoreResponse, new ConnectionRestoreResponse()
-            //        {
-            //            ProposedStartingRetransmissionId = newRetransmissionId
-            //        }.PackToBytes());
-
-            //        IsHandshakeCompleted = false;
-
-            //        return;
-            //    }
-            //}
-
-            //if (dataFrame.MessageType == (int)MessageType.ConnectionRestoreResponse)
-            //{
-            //    var data = ConnectionRestoreResponse.Unpack(dataFrame.Payload);
-
-            //    // +1 because other side already sent one message after counter reset
-            //    ResetMessageCounter(data.ProposedStartingRetransmissionId + 1, dataFrame.RetransmissionId);
-
-            //    SendReceiveAcknowledge(dataFrame.RetransmissionId, AckStatus.Success);
-
-            //    SendBytes((int)MessageType.AdditionalInfoRequest, null, (air_status) =>
-            //    {
-            //        var ai = HandshakeController.GenerateAdditionalInfo(this);
-            //        SendBytes((int)MessageType.AdditionalInfo, ai.PackToBytes());
-            //    });
-
-            //    return;
-            //}
-
             //if (dataFrame.MessageType == (int)MessageType.Shutdown)
             //{
             //    _currentState = ConnectionState.Shutdown;
@@ -500,39 +450,6 @@ namespace NetworkController.UDP
 
             return AckStatus.Success;
         }
-
-        //private void PerformConnectionReset(bool sendPublicKey, uint newSendingId)
-        //{
-        //    _logger.LogInformation("Resetting connection");
-
-        //    Aes = null;
-        //    Ses = null;
-
-        //    if (sendPublicKey)
-        //    {
-        //        ResetMessageCounter(newSendingId, newSendingId);
-        //    }
-        //    else
-        //    {
-        //        // if we are here, that means node processes PublicKey
-        //        // and it's reset response. In that case, newSendingId
-        //        // should be bigger to take sent message into account
-        //        ResetMessageCounter(newSendingId + 1, newSendingId);
-        //    }
-
-        //    IsHandshakeCompleted = false;
-
-        //    if (sendPublicKey)
-        //    {
-        //        // begin handshake
-        //        InitializeConnection(newSendingId);
-        //    }
-
-        //    OnConnectionResetEvent(new ConnectionResetEventArgs
-        //    {
-        //        RelatedNode = this
-        //    });
-        //}
 
         /// <summary>
         /// Asks Node to perform handshaking again. If Node agrees, encryption keys will be cleared.
