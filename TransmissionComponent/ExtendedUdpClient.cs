@@ -15,22 +15,14 @@ namespace TransmissionComponent
     {
         private IUdpClient udpClient;
         private ILogger _logger;
+        public Guid DeviceId { get; private set; }
 
         public uint WaitingTimeBetweenRetransmissions { get; set; } = 2000;
 
         /// <summary>
-        /// Stores messages that were sent, but receiver haven't sent back acknowledge yet
-        /// </summary>
-        internal Dictionary<int, TrackedMessage> TrackedMessages { get; private set; } = new Dictionary<int, TrackedMessage>();
-        /// <summary>
-        /// Lock that keeps TrackedMessages thread-safe
-        /// </summary>
-        internal object trackedMessagesLock = new object();
-
-        /// <summary>
         /// Id that will be assigned to next sent message
         /// </summary>
-        internal int NextSentMessageId = 1;
+        //internal int NextSentMessageId = 1;
 
         /// <summary>
         /// Stores `KnownSource` class instance for each Guid that ever appeared in any incoming message
@@ -53,12 +45,13 @@ namespace TransmissionComponent
 
         public int MaxPacketSize { get; set; } = 65407;
 
-        public ExtendedUdpClient(ILogger logger)
+        public ExtendedUdpClient(ILogger logger, Guid deviceId)
         {
             _logger = logger;
+            DeviceId = deviceId;
         }
 
-        public ExtendedUdpClient(IUdpClient udpClientInstance, ILogger logger) : this(logger)
+        public ExtendedUdpClient(IUdpClient udpClientInstance, ILogger logger, Guid deviceId) : this(logger, deviceId)
         {
             udpClient = udpClientInstance;
         }
@@ -94,20 +87,21 @@ namespace TransmissionComponent
             IPEndPoint senderIpEndPoint = new IPEndPoint(0, 0);
             var receivedData = udpClient.EndReceive(ar, ref senderIpEndPoint);
             DataFrame df = DataFrame.Unpack(receivedData);
+            KnownSource foundSource = FindOrCreateSource(df.SourceNodeIdGuid);
 
             if (df.ReceiveAck)
             {
                 TrackedMessage tm;
                 AckStatus status = AckStatus.Failure; // failure by default
 
-                lock (trackedMessagesLock)
+                lock (foundSource.trackedMessagesLock)
                 {
-                    TrackedMessages.TryGetValue(df.RetransmissionId, out tm);
+                    foundSource.TrackedOutgoingMessages.TryGetValue(df.RetransmissionId, out tm);
                 }
 
                 if (tm == null)
                 {
-                    _logger.LogTrace($"Received ack for {df.RetransmissionId} but is not present in TrackedMessages");
+                    _logger.LogTrace($"Received ack for {df.RetransmissionId} but is not present in TrackedMessages (key: {df.SourceNodeIdGuid})");
                     return;
                 }
                 _logger.LogTrace($"Received ack for {df.RetransmissionId} and processing...");
@@ -130,9 +124,9 @@ namespace TransmissionComponent
                     tm.Callback(status);
                 }
 
-                lock (trackedMessagesLock)
+                lock (foundSource.trackedMessagesLock)
                 {
-                    TrackedMessages.Remove(df.RetransmissionId);
+                    foundSource.TrackedOutgoingMessages.Remove(df.RetransmissionId);
                 }
 
                 // wake up retransmission thread in order to remove it
@@ -143,19 +137,25 @@ namespace TransmissionComponent
             }
             else
             {
-                KnownSource foundSource;
-                KnownSources.TryGetValue(df.SourceNodeIdGuid, out foundSource);
-
-                if (foundSource == null)
-                {
-                    foundSource = new KnownSource(this, df.SourceNodeIdGuid, _logger);
-                    KnownSources.Add(df.SourceNodeIdGuid, foundSource);
-                }
-
                 foundSource.HandleNewMessage(senderIpEndPoint, df);
             }
 
             udpClient.BeginReceive(new AsyncCallback(HandleIncomingMessages), null);
+        }
+
+        internal KnownSource FindOrCreateSource(Guid id)
+        {
+            KnownSource foundSource;
+            KnownSources.TryGetValue(id, out foundSource);
+
+            if (foundSource == null)
+            {
+                _logger.LogDebug($"Created new KnownSource for id {id}");
+                foundSource = new KnownSource(this, id, _logger);
+                KnownSources.Add(id, foundSource);
+            }
+
+            return foundSource;
         }
 
         /// <summary>
@@ -167,24 +167,27 @@ namespace TransmissionComponent
         /// <param name="source">Guid of this device</param>
         /// <param name="encryptionSeed"></param>
         /// <param name="callback">method that should be called after successfull delivery</param>
-        public void SendMessageSequentially(IPEndPoint endPoint, byte[] payload, Guid source, Action<AckStatus> callback = null)
+        public void SendMessageSequentially(IPEndPoint endPoint, byte[] payload, Guid source, Guid destination, Action<AckStatus> callback = null)
         {
-            SendMessage(endPoint, payload, source, true, callback);
+            SendMessage(endPoint, payload, source, destination, true, callback);
         }
 
-        public void SendMessageNonSequentially(IPEndPoint endPoint, byte[] payload, Guid source, Action<AckStatus> callback = null)
+        public void SendMessageNonSequentially(IPEndPoint endPoint, byte[] payload, Guid source, Guid destination, Action<AckStatus> callback = null)
         {
-            SendMessage(endPoint, payload, source, false, callback);
+            SendMessage(endPoint, payload, source, destination, false, callback);
         }
 
-        private void SendMessage(IPEndPoint endPoint, byte[] payload, Guid source, bool sequentially, Action<AckStatus> callback = null)
+        private void SendMessage(IPEndPoint endPoint, byte[] payload, Guid source, Guid destination, bool sequentially, Action<AckStatus> callback = null)
         {
+            KnownSource foundSource = FindOrCreateSource(destination);
+            int retransmissionId = foundSource.NextIdForMessageToSend;
+
             var dataFrame = new DataFrame
             {
                 Payload = payload,
                 SourceNodeIdGuid = source,
                 ExpectAcknowledge = true,
-                RetransmissionId = NextSentMessageId,
+                RetransmissionId = retransmissionId,
                 SendSequentially = sequentially
             };
             var bytes = dataFrame.PackToBytes();
@@ -199,13 +202,13 @@ namespace TransmissionComponent
             _logger.LogTrace($"Sent message with retr. id: {dataFrame.RetransmissionId}");
 
             TrackedMessage tm = new TrackedMessage(bytes, endPoint, callback);
-            TrackedMessages.Add(NextSentMessageId, tm);
+            foundSource.TrackedOutgoingMessages.Add(retransmissionId, tm);
 
-            Thread thread = new Thread(() => RetransmissionThread(dataFrame.RetransmissionId, tm));
+            Thread thread = new Thread(() => RetransmissionThread(dataFrame.RetransmissionId, tm, foundSource));
             thread.IsBackground = true;
             thread.Start();
 
-            NextSentMessageId++;
+            foundSource.SetIdForMessageToSendToNextValue();
         }
 
         /// <summary>
@@ -258,12 +261,12 @@ namespace TransmissionComponent
                 throw new Exception($"Data packet of size {bytes.Length} exceeded maximal allowed size ({MaxPacketSize})");
             }
 
-            _logger.LogDebug($"Sent ReceiveAck for {messageId}");
+            _logger.LogDebug($"Sent ReceiveAck for {messageId} from {source}");
 
             udpClient.Send(bytes, bytes.Length, endPoint);
         }
 
-        internal void RetransmissionThread(int messageId, TrackedMessage tm)
+        internal void RetransmissionThread(int messageId, TrackedMessage tm, KnownSource ks)
         {
             _logger.LogDebug($"Began retransmissionThread of {messageId}");
 
@@ -275,9 +278,9 @@ namespace TransmissionComponent
                     Monitor.Wait(tm.ThreadLock, checked((int)WaitingTimeBetweenRetransmissions));
                 }
 
-                lock (trackedMessagesLock)
+                lock (ks.trackedMessagesLock)
                 {
-                    messageReceived = !TrackedMessages.ContainsKey(messageId);
+                    messageReceived = !ks.TrackedOutgoingMessages.ContainsKey(messageId);
                 }
 
                 if (messageReceived)

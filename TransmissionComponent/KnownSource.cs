@@ -9,7 +9,9 @@ namespace TransmissionComponent
 {
     internal class KnownSource
     {
-        internal int NextExpectedIncomingMessageId = 1;
+        internal int NextExpectedIncomingMessageId { get; private set; } = 1;
+        internal int NextIdForMessageToSend { get; private set; } = 1;
+
         private ExtendedUdpClient _euc;
         private Guid _deviceId;
         private ILogger _logger;
@@ -20,8 +22,17 @@ namespace TransmissionComponent
             public IPEndPoint Sender { get; set; }
         }
 
-        internal SortedList<int, WaitingMessage> WaitingMessages { get; private set; } = new SortedList<int, WaitingMessage>();
+        internal SortedList<int, WaitingMessage> WaitingIncomingMessages { get; private set; } = new SortedList<int, WaitingMessage>();
         internal HashSet<int> ProcessedMessages { get; private set; } = new HashSet<int>();
+
+        /// <summary>
+        /// Stores messages that were sent, but receiver haven't sent back acknowledge yet
+        /// </summary>
+        internal Dictionary<int, TrackedMessage> TrackedOutgoingMessages { get; private set; } = new Dictionary<int, TrackedMessage>();
+        /// <summary>
+        /// Lock that keeps TrackedMessages thread-safe
+        /// </summary>
+        internal object trackedMessagesLock = new object();
 
         public KnownSource(ExtendedUdpClient euc, Guid deviceId, ILogger logger)
         {
@@ -43,12 +54,12 @@ namespace TransmissionComponent
                 {
                     ProcessMessageAndSendAck(df, senderIpEndPoint);
 
-                    SetCounterToNextValue();
+                    SetExpectedIncomingMessageCounterToNextValue();
                 }
                 else if ((NextExpectedIncomingMessageId > 0 && df.RetransmissionId > NextExpectedIncomingMessageId) ||
                     (NextExpectedIncomingMessageId < 0 && df.RetransmissionId < NextExpectedIncomingMessageId))
                 {
-                    WaitingMessages.Add(df.RetransmissionId, new WaitingMessage
+                    WaitingIncomingMessages.Add(df.RetransmissionId, new WaitingMessage
                     {
                         DataFrame = df,
                         Sender = senderIpEndPoint
@@ -66,7 +77,7 @@ namespace TransmissionComponent
 
                 if (df.RetransmissionId == NextExpectedIncomingMessageId)
                 {
-                    SetCounterToNextValue();
+                    SetExpectedIncomingMessageCounterToNextValue();
                 }
                 else
                 {
@@ -90,7 +101,7 @@ namespace TransmissionComponent
                 Status = (int)result
             }.PackToBytes();
 
-            _euc.SendReceiveAck(callbackEndpoint, ra, _deviceId, df.RetransmissionId);
+            _euc.SendReceiveAck(callbackEndpoint, ra, _euc.DeviceId, df.RetransmissionId);
         }
 
         private AckStatus ProcessMessage(DataFrame df, IPEndPoint callbackEndpoint)
@@ -102,7 +113,7 @@ namespace TransmissionComponent
             });
         }
 
-        private void SetCounterToNextValue()
+        private void SetExpectedIncomingMessageCounterToNextValue()
         {
             checked
             {
@@ -133,6 +144,35 @@ namespace TransmissionComponent
             SequentiallyProcessNextWaitingMessages();
         }
 
+        internal void SetIdForMessageToSendToNextValue()
+        {
+            checked
+            {
+                try
+                {
+                    if (NextIdForMessageToSend > 0)
+                    {
+                        NextIdForMessageToSend += 1;
+                    }
+                    else
+                    {
+                        NextIdForMessageToSend -= 1;
+                    }
+                }
+                catch (OverflowException)
+                {
+                    if (NextIdForMessageToSend > 0)
+                    {
+                        NextIdForMessageToSend = 1;
+                    }
+                    else
+                    {
+                        NextIdForMessageToSend = -1;
+                    }
+                }
+            }
+        }
+
         private void SequentiallyProcessNextWaitingMessages()
         {
             WaitingMessage wm;
@@ -140,13 +180,13 @@ namespace TransmissionComponent
             do
             {
                 shouldContinue = false;
-                WaitingMessages.TryGetValue(NextExpectedIncomingMessageId, out wm);
+                WaitingIncomingMessages.TryGetValue(NextExpectedIncomingMessageId, out wm);
 
                 if (wm != null)
                 {
                     ProcessMessageAndSendAck(wm.DataFrame, wm.Sender);
 
-                    SetCounterToNextValue();
+                    SetExpectedIncomingMessageCounterToNextValue();
 
                     shouldContinue = true;
                 }
@@ -154,7 +194,7 @@ namespace TransmissionComponent
                 {
                     ProcessedMessages.Remove(NextExpectedIncomingMessageId);
 
-                    SetCounterToNextValue();
+                    SetExpectedIncomingMessageCounterToNextValue();
                     
                     shouldContinue = true;
                 }
@@ -162,12 +202,17 @@ namespace TransmissionComponent
             } while (shouldContinue);
         }
 
-        public void ResetCounter(int expectedNextIncomingValue)
+        public void ResetIncomingMessagesCounter(int expectedNextIncomingValue)
         {
-            WaitingMessages.Clear();
+            WaitingIncomingMessages.Clear();
             ProcessedMessages.Clear();
 
             NextExpectedIncomingMessageId = expectedNextIncomingValue;
+        }
+
+        public void ResetOutgoingMessagesCounter(int expectedNextOutgoingMessageId)
+        {
+            NextIdForMessageToSend = expectedNextOutgoingMessageId;
         }
     }
 }

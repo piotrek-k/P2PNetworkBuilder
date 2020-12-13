@@ -31,7 +31,7 @@ namespace TransmissionComponentTests
         {
             // Arrange
             Mock<IUdpClient> internetTransmissionMock = new Mock<IUdpClient>();
-            Mock<ExtendedUdpClient> udpClient = new Mock<ExtendedUdpClient>(internetTransmissionMock.Object, _logger);
+            Mock<ExtendedUdpClient> udpClient = new Mock<ExtendedUdpClient>(internetTransmissionMock.Object, _logger, Guid.NewGuid());
             KnownSource knownSource = new KnownSource(udpClient.Object, Guid.NewGuid(), _logger);
             IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000);
 
@@ -42,7 +42,7 @@ namespace TransmissionComponentTests
             });
 
             if (idModifier < 0)
-                knownSource.ResetCounter(-1);
+                knownSource.ResetIncomingMessagesCounter(-1);
 
             // Act
 
@@ -59,7 +59,7 @@ namespace TransmissionComponentTests
             });
 
             // Counter reset
-            knownSource.ResetCounter(-4 * idModifier);
+            knownSource.ResetIncomingMessagesCounter(-4 * idModifier);
 
             // These messages should be rejected
             knownSource.HandleNewMessage(endpoint, new DataFrame()
@@ -98,7 +98,7 @@ namespace TransmissionComponentTests
         {
             // Arrange
             Mock<IUdpClient> internetTransmissionMock = new Mock<IUdpClient>();
-            Mock<ExtendedUdpClient> udpClientMock = new Mock<ExtendedUdpClient>(internetTransmissionMock.Object, _logger);
+            Mock<ExtendedUdpClient> udpClientMock = new Mock<ExtendedUdpClient>(internetTransmissionMock.Object, _logger, Guid.NewGuid());
             KnownSource knownSource = new KnownSource(udpClientMock.Object, Guid.NewGuid(), _logger);
             IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000);
 
@@ -108,7 +108,7 @@ namespace TransmissionComponentTests
                 sequenceTracker.Add(evArg.DataFrame.RetransmissionId);
             });
 
-            knownSource.ResetCounter(valueCausingOverflow);
+            knownSource.ResetIncomingMessagesCounter(valueCausingOverflow);
 
             // Act
             knownSource.HandleNewMessage(endpoint, new DataFrame()
@@ -139,7 +139,7 @@ namespace TransmissionComponentTests
         {
             // Arrange
             Mock<IUdpClient> internetTransmissionMock = new Mock<IUdpClient>();
-            Mock<ExtendedUdpClient> udpClientMock = new Mock<ExtendedUdpClient>(internetTransmissionMock.Object, _logger);
+            Mock<ExtendedUdpClient> udpClientMock = new Mock<ExtendedUdpClient>(internetTransmissionMock.Object, _logger, Guid.NewGuid());
             KnownSource knownSource = new KnownSource(udpClientMock.Object, Guid.NewGuid(), _logger);
             IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000);
 
@@ -150,7 +150,7 @@ namespace TransmissionComponentTests
                     sentDF = DataFrame.Unpack(dgram);
                 });
 
-            knownSource.ResetCounter(1);
+            knownSource.ResetIncomingMessagesCounter(1);
 
             // Act
             knownSource.HandleNewMessage(endpoint, new DataFrame()

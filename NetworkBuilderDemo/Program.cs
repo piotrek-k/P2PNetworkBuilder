@@ -36,13 +36,13 @@ namespace NetworkBuilderDemo
                 parsedPort = 13000;
             }
 
-            network.StartListening(parsedPort);
-
             Guid parsedGuid;
             if (Guid.TryParse(args[1], out parsedGuid))
             {
                 network.DeviceId = parsedGuid;
             }
+
+            network.StartListening(parsedPort);
 
             network.RestorePreviousSessionFromStorage();
 

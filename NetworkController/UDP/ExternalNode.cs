@@ -191,20 +191,20 @@ namespace NetworkController.UDP
         {
             var builtFrame = EncryptAndPrepareForSending(messageType, payload);
 
-            _transmissionHandler.SendMessageSequentially(CurrentEndpoint, builtFrame, NetworkController.DeviceId, callback);
+            _transmissionHandler.SendMessageSequentially(CurrentEndpoint, builtFrame, NetworkController.DeviceId, Id, callback);
         }
 
         public void SendMessageNonSequentially(int messageType, byte[] payload, Action<AckStatus> callback = null)
         {
             var builtFrame = EncryptAndPrepareForSending(messageType, payload);
 
-            _transmissionHandler.SendMessageNonSequentially(CurrentEndpoint, builtFrame, NetworkController.DeviceId, callback);
+            _transmissionHandler.SendMessageNonSequentially(CurrentEndpoint, builtFrame, NetworkController.DeviceId, Id, callback);
         }
         public void SendMessageNonSequentially(int messageType, byte[] payload, IPEndPoint customEndpoint, Action<AckStatus> callback = null)
         {
             var builtFrame = EncryptAndPrepareForSending(messageType, payload);
 
-            _transmissionHandler.SendMessageNonSequentially(customEndpoint, builtFrame, NetworkController.DeviceId, callback);
+            _transmissionHandler.SendMessageNonSequentially(customEndpoint, builtFrame, NetworkController.DeviceId, Id, callback);
         }
 
         public void SendAndForget(int type, byte[] payloadOfDataFrame, IPEndPoint customEndpoint = null)
@@ -301,7 +301,7 @@ namespace NetworkController.UDP
 
             CurrentState = ConnectionState.Building;
 
-            SendMessageSequentially((int)MessageType.PublicKey, payload);
+            SendAndForget((int)MessageType.PublicKey, payload);
         }
 
         public AckStatus HandleIncomingBytes(NC_DataFrame ncDataFrame)

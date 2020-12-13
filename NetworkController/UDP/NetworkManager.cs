@@ -160,19 +160,17 @@ namespace NetworkController.UDP
             }
         }
 
-        public NetworkManager(ILogger logger, NetworkBehaviourTracker tracker)
+        public NetworkManager(ILogger logger, NetworkBehaviourTracker tracker, Guid? enforceId = null)
         {
             _logger = logger;
             _tracker = tracker;
             RegisterMessageTypeEnum(typeof(MessageType));
 
-            transmissionController = new ExtendedUdpClient(_logger);
-        }
-
-        public NetworkManager(ILogger logger, NetworkBehaviourTracker tracker, Guid enforceId) : this(logger, tracker)
-        {
-            DeviceId = enforceId;
-            logger.LogInformation($"Device Id set to {DeviceId}");
+            if(enforceId != null)
+            {
+                DeviceId = enforceId.Value;
+                logger.LogInformation($"Device Id set to {DeviceId}");
+            }
         }
 
         public void RegisterPersistentNodeStorage(IPersistentNodeStorage storage)
@@ -237,6 +235,7 @@ namespace NetworkController.UDP
         {
             ListenerPort = port;
 
+            transmissionController = new ExtendedUdpClient(_logger, DeviceId);
             transmissionController.StartListening(port);
 
             transmissionController.NewIncomingMessage = (newMsgEventArgs) =>

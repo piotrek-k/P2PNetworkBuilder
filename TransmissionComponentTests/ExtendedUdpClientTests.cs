@@ -26,15 +26,18 @@ namespace TransmissionComponentTests
         {
             // Arrange
             Mock<IUdpClient> udpClientMock = new Mock<IUdpClient>();
-            ExtendedUdpClient extendedUdpClient = new ExtendedUdpClient(udpClientMock.Object, _logger);
+            Guid deviceGuid = Guid.NewGuid();
+            ExtendedUdpClient extendedUdpClient = new ExtendedUdpClient(udpClientMock.Object, _logger, deviceGuid);
             Action<AckStatus> callback = (status) => { };
 
+            Guid destinationGuid = Guid.NewGuid();
             byte[] receivedData = null;
             IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000);
             byte[] sentData = new byte[] { 1, 2, 3, 4 };
-            int previousTrackMessagesSize = extendedUdpClient.TrackedMessages.Count();
-            Guid sourceGuid = Guid.NewGuid();
-            int currentMessageId = extendedUdpClient.NextSentMessageId;
+            var foundSource = extendedUdpClient.FindOrCreateSource(destinationGuid);
+            int previousTrackMessagesSize = foundSource.TrackedOutgoingMessages.Count();
+            KnownSource ks = extendedUdpClient.FindOrCreateSource(destinationGuid);
+            int currentMessageId = ks.NextIdForMessageToSend;
 
             udpClientMock.Setup(x => x.Send(It.IsAny<byte[]>(), It.IsAny<int>(), It.IsAny<IPEndPoint>()))
                 .Callback<byte[], int, IPEndPoint>((dgram, bytes, endpoint) =>
@@ -44,7 +47,7 @@ namespace TransmissionComponentTests
 
             // Act 
             extendedUdpClient.SendMessageSequentially(
-                endpoint, sentData, sourceGuid, callback);
+                endpoint, sentData, deviceGuid, destinationGuid, callback);
 
             // Assert
             udpClientMock
@@ -54,8 +57,8 @@ namespace TransmissionComponentTests
             DataFrame result = DataFrame.Unpack(receivedData);
             Assert.True(result.ExpectAcknowledge);
             Assert.Equal(result.Payload, sentData);
-            Assert.True(extendedUdpClient.TrackedMessages.Count() == previousTrackMessagesSize + 1);
-            Assert.True(extendedUdpClient.NextSentMessageId == currentMessageId + 1);
+            Assert.True(foundSource.TrackedOutgoingMessages.Count() == previousTrackMessagesSize + 1);
+            Assert.True(ks.NextIdForMessageToSend == currentMessageId + 1);
         }
 
         //[Fact]
@@ -97,19 +100,19 @@ namespace TransmissionComponentTests
         {
             // Arrange
             Mock<IUdpClient> udpClientMock = new Mock<IUdpClient>();
-            ExtendedUdpClient extendedUdpClient = new ExtendedUdpClient(udpClientMock.Object, _logger);
+            Guid deviceGuid = Guid.NewGuid();
+            ExtendedUdpClient extendedUdpClient = new ExtendedUdpClient(udpClientMock.Object, _logger, deviceGuid);
 
             extendedUdpClient.NewIncomingMessage = (x) => { return AckStatus.Success; };
 
             int testedMessageId = 1;
-            Guid sourceId = Guid.NewGuid();
-
+            
             udpClientMock.Setup(x => x.EndReceive(It.IsAny<IAsyncResult>(), ref It.Ref<IPEndPoint>.IsAny))
                 .Returns(() =>
                 {
                     return new DataFrame()
                     {
-                        SourceNodeIdGuid = sourceId,
+                        SourceNodeIdGuid = deviceGuid,
                         RetransmissionId = testedMessageId
                     }.PackToBytes();
                 });
@@ -131,38 +134,44 @@ namespace TransmissionComponentTests
         {
             // Arrange
             Mock<IUdpClient> udpClientMock = new Mock<IUdpClient>();
-            ExtendedUdpClient extendedUdpClient = new ExtendedUdpClient(udpClientMock.Object, _logger);
+            Guid deviceGuid = Guid.NewGuid();
+            ExtendedUdpClient extendedUdpClient = new ExtendedUdpClient(udpClientMock.Object, _logger, deviceGuid);
             extendedUdpClient.NewIncomingMessage = (x) => { return AckStatus.Success; };
 
+            Guid externalDeviceGuid = Guid.NewGuid();
             int testedMessageId = 1;
             udpClientMock.Setup(x => x.EndReceive(It.IsAny<IAsyncResult>(), ref It.Ref<IPEndPoint>.IsAny))
                 .Returns(() =>
                 {
                     return new DataFrame()
                     {
+                        SourceNodeIdGuid = externalDeviceGuid,
                         RetransmissionId = testedMessageId,
                         ReceiveAck = true
                     }.PackToBytes();
                 });
 
-            extendedUdpClient.TrackedMessages.Add(
+            
+            var foundSource = extendedUdpClient.FindOrCreateSource(externalDeviceGuid);
+
+            foundSource.TrackedOutgoingMessages.Add(
                 testedMessageId, new TrackedMessage(
                     new byte[] { 1, 2 },
                     new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000)
                     ));
-            extendedUdpClient.TrackedMessages.Add(
+            foundSource.TrackedOutgoingMessages.Add(
                testedMessageId + 1, new TrackedMessage(
                    new byte[] { 1, 2 },
                    new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000)
                    ));
 
-            Assert.Equal(2, extendedUdpClient.TrackedMessages.Count);
+            Assert.Equal(2, foundSource.TrackedOutgoingMessages.Count);
 
             // Act
             extendedUdpClient.HandleIncomingMessages(null);
 
             // Assert
-            Assert.Single(extendedUdpClient.TrackedMessages);
+            Assert.Single(foundSource.TrackedOutgoingMessages);
         }
 
         [Theory]
@@ -172,23 +181,29 @@ namespace TransmissionComponentTests
         {
             // Arrange
             Mock<IUdpClient> udpClientMock = new Mock<IUdpClient>();
-            ExtendedUdpClient extendedUdpClient = new ExtendedUdpClient(udpClientMock.Object, _logger);
+            Guid deviceGuid = Guid.NewGuid();
+            ExtendedUdpClient extendedUdpClient = new ExtendedUdpClient(udpClientMock.Object, _logger, deviceGuid);
             extendedUdpClient.NewIncomingMessage = (x) => { return AckStatus.Success; };
             int testedMessageId = 1;
             int numberOfFailures = 0;
             int numberOfSuccesses = 0;
+            Guid externalDeviceGuid = Guid.NewGuid();
+
             udpClientMock.Setup(x => x.EndReceive(It.IsAny<IAsyncResult>(), ref It.Ref<IPEndPoint>.IsAny))
                 .Returns(() =>
                 {
                     return new DataFrame()
                     {
+                        SourceNodeIdGuid = externalDeviceGuid,
                         RetransmissionId = testedMessageId,
                         ReceiveAck = true,
                         Payload = new ReceiveAcknowledge() { Status = (int)messageStatus }.PackToBytes()
                     }.PackToBytes();
                 });
+            
+            var foundSource = extendedUdpClient.FindOrCreateSource(externalDeviceGuid);
 
-            extendedUdpClient.TrackedMessages.Add(
+            foundSource.TrackedOutgoingMessages.Add(
                 testedMessageId, new TrackedMessage(
                     new byte[] { 1, 2 },
                     new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000),
@@ -200,7 +215,7 @@ namespace TransmissionComponentTests
                             numberOfSuccesses++;
                     }
                     ));
-            extendedUdpClient.TrackedMessages.Add(
+            foundSource.TrackedOutgoingMessages.Add(
                testedMessageId + 1, new TrackedMessage(
                    new byte[] { 1, 2 },
                    new IPEndPoint(IPAddress.Parse("127.0.0.1"), 13000),

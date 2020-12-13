@@ -13,8 +13,8 @@ namespace TransmissionComponent
         /// </summary>
         Func<NewMessageEventArgs, AckStatus> NewIncomingMessage { set; }
 
-        void SendMessageSequentially(IPEndPoint endPoint, byte[] payload, Guid source, Action<AckStatus> callback = null);
-        void SendMessageNonSequentially(IPEndPoint endPoint, byte[] payload, Guid source, Action<AckStatus> callback = null);
+        void SendMessageSequentially(IPEndPoint endPoint, byte[] payload, Guid source, Guid destination, Action<AckStatus> callback = null);
+        void SendMessageNonSequentially(IPEndPoint endPoint, byte[] payload, Guid source, Guid destination, Action<AckStatus> callback = null);
         void SendMessageNoTracking(IPEndPoint endPoint, byte[] payload, Guid source);
         //public void SendMessageOnlyEnsureDelivered();
         //public void SendMessageAsDatagram();
