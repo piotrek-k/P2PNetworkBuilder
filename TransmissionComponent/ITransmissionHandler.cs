@@ -25,5 +25,6 @@ namespace TransmissionComponent
 
         void ResetIncomingMessageCounterFor(Guid connectedDeviceGuid, int nextIdOfIncomingMessage);
         void ResetOutgoingMessageCounterFor(Guid connectedDeviceGuid, int nextIdOfOutgoingMessage);
+        int GetIncomingMessageCounterFor(Guid connectedDeviceGuid);
     }
 }

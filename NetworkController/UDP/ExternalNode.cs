@@ -154,7 +154,7 @@ namespace NetworkController.UDP
         public const string SAMPLE_ENCRYPTION_VERIFICATION_TEXT = "This is test";
 
         // Connection reset
-        public DateTimeOffset? ConnectionResetExpirationTime = null;
+        public DateTimeOffset? ConnectionResetExpirationTime { get; set; } = null;
         public const int CONNECTION_RESET_ALLOWANCE_WINDOW_SEC = 60 * 5;
 
         private ExternalNode(INetworkControllerInternal networkController, ILogger logger,
@@ -289,13 +289,13 @@ namespace NetworkController.UDP
         /// <summary>
         /// Sends PublicKey to external node to begin connection
         /// </summary>
-        public void InitializeConnection(uint? proposedRetransmissionId = null)
+        public void InitializeConnection(int? externalNodeShouldRespondWithThisId = null)
         {
             Aes = new AsymmetricEncryptionService();
             var payload = new ConnectionInitPublicKey()
             {
                 RsaParams = Aes.PublicKey,
-                ProposedStartingRetransmissionId = proposedRetransmissionId
+                RespondWithThisId = externalNodeShouldRespondWithThisId
             }.PackToBytes();
 
             CurrentState = ConnectionState.Building;
@@ -377,10 +377,9 @@ namespace NetworkController.UDP
              * PREVENTING UNFORSEEN BEHAVIOUR
              */
 
-            if (ncDataFrame.MessageType == (int)MessageType.PublicKey && Ses != null)
+            if (ncDataFrame.MessageType == (int)MessageType.PublicKey && IsHandshakeCompleted)
             {
-                _logger.LogTrace("Unexpected PublicKey");
-                return AckStatus.Failure;
+                throw new Exception("Unexpected PublicKey");
             }
 
             if (MessageTypeGroups.IsHandshakeRelatedAndShouldntBeDoneMoreThanOnce(ncDataFrame.MessageType) &&
@@ -456,7 +455,27 @@ namespace NetworkController.UDP
         /// </summary>
         public void RestartConnection()
         {
-            SendMessageSequentially((int)MessageType.ResetRequest, new ResetRequest().PackToBytes());
+            IsHandshakeCompleted = false;
+            Aes = null;
+            Ses = null;
+
+            int newIncomingMessageId;
+            if (_transmissionHandler.GetIncomingMessageCounterFor(Id) > 0)
+            {
+                newIncomingMessageId = new Random().Next(int.MinValue, -1);
+            }
+            else
+            {
+                newIncomingMessageId = new Random().Next(1, int.MaxValue);
+            }
+
+            ForceResetIncomingMessageCounter(newIncomingMessageId);
+
+            SendAndForget((int)MessageType.ResetRequest, new ResetRequest()
+            {
+                IdOfNextMessageYouSend = newIncomingMessageId
+            }.PackToBytes());
+
             ConnectionResetExpirationTime = DateTimeOffset.UtcNow.AddSeconds(CONNECTION_RESET_ALLOWANCE_WINDOW_SEC);
         }
 
@@ -532,7 +551,7 @@ namespace NetworkController.UDP
 
             int newIncommingMessageId = new Random().Next(int.MinValue, int.MaxValue);
 
-            _transmissionHandler.ResetIncomingMessageCounterFor(Id, newIncommingMessageId);
+            ForceResetIncomingMessageCounter(newIncommingMessageId);
 
             // TODO: maybe send it fore than once?
 
@@ -545,11 +564,13 @@ namespace NetworkController.UDP
 
         public void ForceResetOutgoingMessageCounter(int idOfNextOutgoingMessage)
         {
+            _logger.LogDebug($"I'm now sending messages starting with {idOfNextOutgoingMessage}");
             _transmissionHandler.ResetOutgoingMessageCounterFor(Id, idOfNextOutgoingMessage);
         }
 
         public void ForceResetIncomingMessageCounter(int idOfNextIncomingMessage)
         {
+            _logger.LogDebug($"I'm now receving messages starting with {idOfNextIncomingMessage}");
             _transmissionHandler.ResetIncomingMessageCounterFor(Id, idOfNextIncomingMessage);
         }
 

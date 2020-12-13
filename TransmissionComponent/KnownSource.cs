@@ -59,11 +59,19 @@ namespace TransmissionComponent
                 else if ((NextExpectedIncomingMessageId > 0 && df.RetransmissionId > NextExpectedIncomingMessageId) ||
                     (NextExpectedIncomingMessageId < 0 && df.RetransmissionId < NextExpectedIncomingMessageId))
                 {
-                    WaitingIncomingMessages.Add(df.RetransmissionId, new WaitingMessage
+                    _logger.LogDebug($"Received {df.RetransmissionId} but expected {NextExpectedIncomingMessageId}. Message postponed.");
+                    try
                     {
-                        DataFrame = df,
-                        Sender = senderIpEndPoint
-                    });
+                        WaitingIncomingMessages.Add(df.RetransmissionId, new WaitingMessage
+                        {
+                            DataFrame = df,
+                            Sender = senderIpEndPoint
+                        });
+                    }
+                    catch (ArgumentException)
+                    {
+                        // seems to be a retransmission
+                    }
                 }
             }
             else if (
@@ -89,6 +97,10 @@ namespace TransmissionComponent
                 // Message sent by SendAndForget method
 
                 ProcessMessage(df, senderIpEndPoint);
+            }
+            else
+            {
+                throw new Exception("Don't know how to handle this message");
             }
         }
 

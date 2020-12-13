@@ -28,7 +28,7 @@ namespace NetworkController.Interfaces.ForTesting
 
         void SendPingSeries();
 
-        void InitializeConnection(uint? proposedRetransmissionId = null);
+        void InitializeConnection(int? externalNodeShouldRespondWithThisId = null);
         void ReportIncomingPingResponse();
         void ReportConnectionFailure();
         void ReportThatConnectionIsSetUp();
@@ -39,5 +39,7 @@ namespace NetworkController.Interfaces.ForTesting
         void FillCurrentEndpoint(IPEndPoint proposedEndpoint);
         void ForceResetOutgoingMessageCounter(int idOfNextOutgoingMessage);
         void ForceResetIncomingMessageCounter(int idOfNextIncomingMessage);
+
+        DateTimeOffset? ConnectionResetExpirationTime { get; set; }
     }
 }

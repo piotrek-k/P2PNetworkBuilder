@@ -8,7 +8,7 @@ namespace NetworkController.DataTransferStructures
     [Serializable]
     public class ConnectionInitPublicKey : ConvertableToBytes<ConnectionInitPublicKey>
     {
-        public uint? ProposedStartingRetransmissionId { get; set; }
+        public int? RespondWithThisId { get; set; }
 
         // TODO: remove manual RSAParamters creation
 

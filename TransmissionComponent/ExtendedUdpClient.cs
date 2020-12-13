@@ -137,7 +137,14 @@ namespace TransmissionComponent
             }
             else
             {
-                foundSource.HandleNewMessage(senderIpEndPoint, df);
+                try
+                {
+                    foundSource.HandleNewMessage(senderIpEndPoint, df);
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError($"Error while processing message. {e.Message}");
+                }
             }
 
             udpClient.BeginReceive(new AsyncCallback(HandleIncomingMessages), null);
@@ -313,6 +320,13 @@ namespace TransmissionComponent
             var source = FindOrCreateSource(connectedDeviceGuid);
 
             source.ResetOutgoingMessagesCounter(nextIdOfOutgoingMessage);
+        }
+
+        public int GetIncomingMessageCounterFor(Guid connectedDeviceGuid)
+        {
+            var source = FindOrCreateSource(connectedDeviceGuid);
+
+            return source.NextExpectedIncomingMessageId;
         }
     }
 }

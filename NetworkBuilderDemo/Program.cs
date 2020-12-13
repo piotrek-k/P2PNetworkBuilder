@@ -22,6 +22,10 @@ namespace NetworkBuilderDemo
             network = new NetworkManagerFactory()
                 //.AddPersistentNodeStorage(new PlainTextFileNodeStorage("./keys.txt"))
                 .AddPersistentNodeStorage(new PlainTextFileNodeStorage(args[2]))
+                .AddConnectionResetRule((node) =>
+                {
+                    return true;
+                })
                 .Create();
 
             foreach (var a in args)

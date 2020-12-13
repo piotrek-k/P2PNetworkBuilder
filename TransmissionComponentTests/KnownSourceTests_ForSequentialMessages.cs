@@ -131,7 +131,7 @@ namespace TransmissionComponentTests
 
             DataFrame message = new DataFrame()
             {
-                RetransmissionId = 1,
+                RetransmissionId = 10,
                 SendSequentially = true
             };
 
@@ -141,7 +141,8 @@ namespace TransmissionComponentTests
             knownSource.HandleNewMessage(endpoint, message);
 
             // Assert
-            udpClientMock.Verify(x => x.OnNewMessageReceived(It.IsAny<NewMessageEventArgs>()), Times.Once);
+            //udpClientMock.Verify(x => x.OnNewMessageReceived(It.IsAny<NewMessageEventArgs>()), Times.Once);
+            Assert.True(knownSource.WaitingIncomingMessages.Count() == 1);
         }
 
         [Fact]
