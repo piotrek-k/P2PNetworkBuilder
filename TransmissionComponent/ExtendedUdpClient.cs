@@ -294,5 +294,25 @@ namespace TransmissionComponent
 
             } while (!messageReceived);
         }
+
+        /// <summary>
+        /// Setting what `retransmissionId` message sent from `connectedDeviceGuid` should have
+        /// in order to reach this device
+        /// </summary>
+        /// <param name="connectedDeviceGuid"></param>
+        /// <param name="nextIdOfIncomingMessage"></param>
+        public void ResetIncomingMessageCounterFor(Guid connectedDeviceGuid, int nextIdOfIncomingMessage)
+        {
+            var source = FindOrCreateSource(connectedDeviceGuid);
+
+            source.ResetIncomingMessagesCounter(nextIdOfIncomingMessage);
+        }
+
+        public void ResetOutgoingMessageCounterFor(Guid connectedDeviceGuid, int nextIdOfOutgoingMessage)
+        {
+            var source = FindOrCreateSource(connectedDeviceGuid);
+
+            source.ResetOutgoingMessagesCounter(nextIdOfOutgoingMessage);
+        }
     }
 }

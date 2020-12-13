@@ -613,17 +613,27 @@ namespace NetworkController.UDP
             Ses = new SymmetricEncryptionService(key);
             CurrentState = ConnectionState.Building;
 
-            SendMessageSequentially((int)MessageType.ConnectionRestoreRequest, new ConnectionRestoreRequest()
+            int newIncommingMessageId = new Random().Next(int.MinValue, int.MaxValue);
+
+            _transmissionHandler.ResetIncomingMessageCounterFor(Id, newIncommingMessageId);
+
+            // TODO: maybe send it fore than once?
+
+            SendAndForget((int)MessageType.ConnectionRestoreRequest, new ConnectionRestoreRequest()
             {
-                SampleDataForEncryptionVerification = SAMPLE_ENCRYPTION_VERIFICATION_TEXT
-            }.PackToBytes(), (crr_status) =>
-            {
-                if (crr_status == AckStatus.Failure && actionOnFailure != null)
-                {
-                    CurrentState = ConnectionState.Failed;
-                    actionOnFailure();
-                }
-            });
+                SampleDataForEncryptionVerification = SAMPLE_ENCRYPTION_VERIFICATION_TEXT,
+                IdOfNextMessageYouSend = newIncommingMessageId
+            }.PackToBytes());
+        }
+
+        public void ForceResetOutgoingMessageCounter(int idOfNextOutgoingMessage)
+        {
+            _transmissionHandler.ResetOutgoingMessageCounterFor(Id, idOfNextOutgoingMessage);
+        }
+
+        public void ForceResetIncomingMessageCounter(int idOfNextIncomingMessage)
+        {
+            _transmissionHandler.ResetIncomingMessageCounterFor(Id, idOfNextIncomingMessage);
         }
 
         public byte[] GetSecurityKeys()

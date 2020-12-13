@@ -15,5 +15,6 @@ namespace NetworkController.DataTransferStructures
         /// Used for making sure that data can be decrypted
         /// </summary>
         public string SampleDataForEncryptionVerification { get; set; }
+        public int IdOfNextMessageYouSend { get; set; }
     }
 }

@@ -22,5 +22,8 @@ namespace TransmissionComponent
         void StartListening(int port);
 
         int MaxPacketSize { get; set; }
+
+        void ResetIncomingMessageCounterFor(Guid connectedDeviceGuid, int nextIdOfIncomingMessage);
+        void ResetOutgoingMessageCounterFor(Guid connectedDeviceGuid, int nextIdOfOutgoingMessage);
     }
 }

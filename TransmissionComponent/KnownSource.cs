@@ -195,7 +195,7 @@ namespace TransmissionComponent
                     ProcessedMessages.Remove(NextExpectedIncomingMessageId);
 
                     SetExpectedIncomingMessageCounterToNextValue();
-                    
+
                     shouldContinue = true;
                 }
 
@@ -212,6 +212,11 @@ namespace TransmissionComponent
 
         public void ResetOutgoingMessagesCounter(int expectedNextOutgoingMessageId)
         {
+            lock (trackedMessagesLock)
+            {
+                TrackedOutgoingMessages.Clear();
+            }
+
             NextIdForMessageToSend = expectedNextOutgoingMessageId;
         }
     }

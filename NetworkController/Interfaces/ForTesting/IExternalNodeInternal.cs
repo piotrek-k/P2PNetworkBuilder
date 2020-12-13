@@ -37,5 +37,7 @@ namespace NetworkController.Interfaces.ForTesting
 
         void SetId(Guid newId);
         void FillCurrentEndpoint(IPEndPoint proposedEndpoint);
+        void ForceResetOutgoingMessageCounter(int idOfNextOutgoingMessage);
+        void ForceResetIncomingMessageCounter(int idOfNextIncomingMessage);
     }
 }

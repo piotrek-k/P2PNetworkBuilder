@@ -13,6 +13,6 @@ namespace NetworkController.DataTransferStructures
         /// <summary>
         /// Used for making sure that data can be decrypted
         /// </summary>
-        public uint ProposedStartingRetransmissionId { get; set; }
+        public int IdOfNextMessageYouSendMe { get; set; }
     }
 }
