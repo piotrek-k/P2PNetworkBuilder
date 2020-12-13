@@ -140,11 +140,6 @@ namespace NetworkController.UDP
         /// </summary>
         private ITransmissionHandler _transmissionHandler;
 
-        /// <summary>
-        /// Counter of messages ensuring their proper order
-        /// </summary>
-        public uint HighestReceivedSendingId { get; private set; }
-
         // Building states
         /// <summary>
         /// If true, nodes is waiting for ping in order to begin connection
@@ -305,73 +300,7 @@ namespace NetworkController.UDP
 
         public AckStatus HandleIncomingBytes(NC_DataFrame ncDataFrame)
         {
-            //if (CurrentState == ConnectionState.Shutdown)
-            //{
-            //    if (dataFrame.MessageType == (int)MessageType.Restart)
-            //    {
-            //        CurrentState = ConnectionState.Ready;
-            //        // TODO: change starting value to dynamically generated (like on connection restoring)
-            //        TransmissionManager.SetupIfNotWorking(1);
-            //    }
-            //    else
-            //    {
-            //        _logger.LogWarning("Received message but ignored it as connection is shut down.");
-            //        return;
-            //    }
-            //}
-
             RestoreIfFailed();
-
-            /**
-             * RESETTING CONNECTION
-             */
-
-            //if (dataFrame.MessageType == (int)MessageType.PublicKey && ConnectionResetExpirationTime != null &&
-            //    ConnectionResetExpirationTime > DateTimeOffset.UtcNow)
-            //{
-            //    // reset request was sent by this node and exernal node sent PublicKey as response
-            //    var pubKeyObj = ConnectionInitPublicKey.Unpack(dataFrame.Payload);
-
-            //    ConnectionResetExpirationTime = null;
-            //    if (pubKeyObj.ProposedStartingRetransmissionId == null)
-            //    {
-            //        throw new Exception("Resetting connection: Public key doesn't contain proposed retransmission id");
-            //    }
-            //    else
-            //    {
-            //        PerformConnectionReset(false, pubKeyObj.ProposedStartingRetransmissionId.Value);
-
-            //        SendReceiveAcknowledge(dataFrame.RetransmissionId, AckStatus.Success);
-
-            //        HighestReceivedSendingId = dataFrame.RetransmissionId - 1;
-            //    }
-            //}
-
-            //if (dataFrame.MessageType == (int)MessageType.ResetRequest)
-            //{
-            //    // other Node lost keys and wants to reset connection
-
-            //    if (dataFrame.ExpectAcknowledge)
-            //    {
-            //        SendReceiveAcknowledge(dataFrame.RetransmissionId, AckStatus.Success);
-            //    }
-
-            //    if (NetworkController.ConnectionResetRule(this))
-            //    {
-            //        _logger.LogInformation("Connection reset request accepted");
-            //        uint newRetransmissionId = GenerateNewSafeRetransmissionId(dataFrame);
-
-            //        PerformConnectionReset(true, newRetransmissionId);
-
-            //        return;
-            //    }
-            //    else
-            //    {
-            //        _logger.LogInformation("Connection reset revoked");
-
-            //        return;
-            //    }
-            //}
 
             /**
              * PREVENTING UNFORSEEN BEHAVIOUR
@@ -428,12 +357,6 @@ namespace NetworkController.UDP
                 _logger.LogTrace("Payload size correction");
                 decryptedPayload = decryptedPayload.Take(ncDataFrame.PayloadSize).ToArray();
             }
-
-            //if (dataFrame.MessageType == (int)MessageType.Shutdown)
-            //{
-            //    _currentState = ConnectionState.Shutdown;
-            //    TransmissionManager.GentleShutdown();
-            //}
 
             if (!_imc.Call(this, ncDataFrame.MessageType, decryptedPayload))
             {
