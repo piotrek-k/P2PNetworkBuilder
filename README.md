@@ -21,10 +21,21 @@ Key features:
 * Provides end-to-end encryption of sent message's content
 * Uses public-key cryptography to exchange keys
 * Operates on custom UDP based Internet protocol which ensures packet delivery in correct order
+* Detects network memebers automatically. To enter the network you need to manually connect to one node, library will handle connection to the rest.
 
-## Minimal example
+## Installation
 
-All you need to do to set up network node is to create `NetworkController` instance and port listener:
+Package is available on [Nuget package manager](https://www.nuget.org/packages/P2PNetworkBuilder/)
+
+```
+$ dotnet add package P2PNetworkBuilder
+```
+
+## Usage
+
+For working example with explanation comments, look at source code of `NetworkBuilderDemo` project in this repository.
+
+All you need to do to set up network node is to create `INetworkController` instance and specify port listener:
 
 ```csharp
 INetworkController network = new NetworkManagerFactory().Create();
@@ -51,10 +62,11 @@ foreach (var node in network.Nodes)
 }
 ```
 
-You can also send byte arrays to each node:
-
+To communicate with other nodes in network, you can use `SendBytes` method. The first parameter it takes is called `messageType`. It informs external node about purpose of your message. Keep in mind that some of numbers are reserved and used by framework internally. 
+To avoid message conflicts, follow instructions from `NetworkBuilderDemo` example.
+ 
 ```csharp
-n.SendBytes(1234, new byte[] { 1, 2, 3, 4 }, (result) =>
+node.SendBytes(1234, new byte[] { 1, 2, 3, 4 }, (result) =>
     {
         // this code executes after receving acknowledge that message was delivered 
         if(result == AckStatus.Success){
@@ -65,3 +77,4 @@ n.SendBytes(1234, new byte[] { 1, 2, 3, 4 }, (result) =>
         }
     });
 ```
+
