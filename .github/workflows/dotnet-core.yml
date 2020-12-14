@@ -37,6 +37,8 @@ jobs:
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
+          cd ./NetworkController
+          
           # Restore .NET tools
           dotnet tool restore
           
