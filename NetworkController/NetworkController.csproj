@@ -2,9 +2,12 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <PackageId>P2PNetworkBuilder</PackageId>
     <Authors>Piotr Kozerski</Authors>
     <Description>Library for building P2P networks</Description>
     <Version>$(RELEASE_VERSION)</Version>
+    <Copyright>Copyright 2020 Piotr Kozerski. All rights reserved.</Copyright>
+    <PackageTags>network p2p peer-to-peer peertopeer</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
