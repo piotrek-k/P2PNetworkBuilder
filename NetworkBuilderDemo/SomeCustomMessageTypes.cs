@@ -7,6 +7,6 @@ namespace NetworkBuilderDemo
     public enum SomeCustomMessageTypes : int
     {
         Test1 = 100,
-        Test2 = 50
+        Test2 = 101
     }
 }

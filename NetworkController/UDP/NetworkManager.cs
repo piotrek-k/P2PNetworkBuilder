@@ -55,6 +55,10 @@ namespace NetworkController.UDP
             }
             internal set
             {
+                if(transmissionController == null)
+                {
+                    throw new Exception("MaxPacketSize should be set after setting up listener");
+                }
                 transmissionController.MaxPacketSize = value;
             }
         }

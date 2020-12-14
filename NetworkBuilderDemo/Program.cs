@@ -1,4 +1,6 @@
-﻿using NetworkController;
+﻿using Microsoft.Extensions.Logging;
+using NetworkController;
+using NetworkController.Debugging;
 using NetworkController.Interfaces;
 using NetworkController.Persistance;
 using NetworkController.UDP;
@@ -7,6 +9,7 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using static NetworkController.UDP.NetworkManager;
 
 namespace NetworkBuilderDemo
 {
@@ -17,144 +20,189 @@ namespace NetworkBuilderDemo
 
         static async Task Main(string[] args)
         {
-            // .\NetworkBuilderDemo.exe 13001 9e6f77c3-3b80-4c95-a547-44f96aca0044 .\keys.txt
+            // run command example:
+            // ./NetworkBuilderDemo 13001 9e6f77c3-3b80-4c95-a547-44f96aca0044 ./keys.txt
 
-            network = new NetworkManagerFactory()
-                //.AddPersistentNodeStorage(new PlainTextFileNodeStorage("./keys.txt"))
+            if(args.Count() < 3)
+            {
+                Console.WriteLine("3 arguments needed:");
+                Console.WriteLine("[port] [guid] [file_name]");
+            }
+
+            // This logger prints logs to console output
+            ILogger logger = new CustomLoggerProvider(LogLevel.Trace).CreateLogger("");
+
+            // Creating NetworkController instance
+            INetworkController network = new NetworkManagerFactory()
+                // optional: add your custom logger. By default it prints to console
+                .AddLogger(logger)
+                // optional: store information about connected nodes and encryption keys in txt file
                 .AddPersistentNodeStorage(new PlainTextFileNodeStorage(args[2]))
+                // optional: specify max size of packet. When exceeded, exception will be thrown
+                //.SetMaxPacketSize(1234)
+                .AddNewUnannouncedConnectionAllowanceRule((source_id) =>
+                {
+                    // unknown device want to connect to network
+
+                    // you should perform some verification steps here
+                    // e.g. display prompt to user
+                    // use cautiously, possible security vulnerability
+
+                    return true; // to give device access to network
+                    // return false; // to reject it
+                })
                 .AddConnectionResetRule((node) =>
                 {
-                    return true;
+                    // known device lost encryption key and wants to reconnect
+
+                    // use cautiously, possible security vulnerability
+
+                    return true; // to give device access to network
+                    // return false; // to reject it
                 })
                 .Create();
 
-            foreach (var a in args)
-            {
-                Console.WriteLine(a);
-            }
-
-
             int parsedPort;
-            if (args.Length < 1 || !int.TryParse(args[0], out parsedPort))
+            try
             {
-                parsedPort = 13000;
+                parsedPort = int.Parse(args[0]);
+            }
+            catch (Exception)
+            {
+                Console.WriteLine("Incorrect port number");
+                return;
             }
 
             Guid parsedGuid;
-            if (Guid.TryParse(args[1], out parsedGuid))
+            try
             {
-                network.DeviceId = parsedGuid;
+                parsedGuid = Guid.Parse(args[1]);
             }
+            catch (Exception)
+            {
+                Console.WriteLine("Incorrect id of device");
+                return;
+            }
+            network.DeviceId = parsedGuid;
 
             network.StartListening(parsedPort);
 
+            // if you used AddPersistentNodeStorage to store session to txt file,
+            // you can load it now
             network.RestorePreviousSessionFromStorage();
-
-            IPEndPoint parsedIP;
-            if (args.Length >= 3 && IPEndPoint.TryParse(args[2], out parsedIP) && network.Nodes.Count() == 0)
-            {
-                network.ConnectManually(parsedIP);
-                Console.WriteLine($"Connecting to {parsedIP}...");
-            }
 
             network.NetworkChanged += (object sender, EventArgs e) =>
             {
-                ListRefresh();
+                Console.WriteLine("State of one of nodes has changed");
+            };
+            network.NodeAdded += (object sender, EventArgs e) =>
+            {
+                Console.WriteLine("New node has been added (but it's not ready to talk to yet)");
+            };
+            network.NodeFinishedHandshaking += (object sender, HandshakingFinishedEventArgs e) =>
+            {
+                Console.WriteLine("New node has been added (and it's ready to communicate)");
             };
 
+            // You can prevent some devices from connecting
+            // network.Blacklist.Add(someGuid);
+
+            // to ensure that your message ids doesn't collide with those used by NetworkController
+            // register them here. If they do, exception will be thrown.
             network.RegisterMessageTypeEnum(typeof(SomeCustomMessageTypes));
+
+            Console.WriteLine(
+                $"\n====== DEVICE INFO ======\n" +
+                $"Port number: {parsedPort}\n" +
+                $"DeviceId: {network.DeviceId}\n" +
+                $"=========================\n");
+
+            PrintHelp();
 
             new Thread(() =>
             {
+                string input = "";
                 IExternalNode currentNode = null;
-                int counter = 0;
-
-                while (true)
+                while (input.Trim() != "q")
                 {
-                    var currentKey = Console.ReadKey();
+                    try
+                    {
+                        input = Console.ReadLine();
 
-                    if (currentKey.Key == ConsoleKey.S && currentNode != null)
-                    {
-                        Console.WriteLine("Sending...");
-                        currentNode.SendMessageSequentially(100, new byte[] { 0, 1, 2, 3, 4, 5 });
-                    }
-                    else if (currentKey.Key == ConsoleKey.D && currentNode != null)
-                    {
-                        Console.WriteLine("Sending...");
-                        currentNode.SendMessageNonSequentially(101, new byte[] { 0, 1, 2, 3, 4, 5 });
-                    }
-                    else if (currentKey.Key == ConsoleKey.N)
-                    {
-                        currentNode = network.Nodes.ToList()[counter];
-                        counter = counter % network.Nodes.Count();
-                        Console.WriteLine($"Set current node to {counter}: {currentNode.Id}");
-                    }
-                    else if (currentKey.Key == ConsoleKey.R)
-                    {
-                        if (currentNode == null)
-                        {
-                            Console.WriteLine("Current node is null");
-                        }
-                        else
-                        {
-                            currentNode.RestartConnection();
-                        }
-                    }
-                    else if(currentKey.Key == ConsoleKey.P)
-                    {
-                        ListRefresh();
-                    }
-                    else if (currentKey.Key == ConsoleKey.G)
-                    {
-                        var key = currentNode.GetSecurityKeys();
-                        Console.WriteLine(ByteArrayToString(key));
-                    }
-                    else if (currentKey.Key == ConsoleKey.Z)
-                    {
-                        Console.WriteLine("Address:");
-                        var ep = Console.ReadLine();
-                        IPEndPoint newParsedIP;
-                        IExternalNode newNode;
-                        if (IPEndPoint.TryParse(ep, out newParsedIP))
-                        {
-                            newNode = network.ConnectManually(newParsedIP);
-                        }
-                    }
-                    else if (currentKey.Key == ConsoleKey.C)
-                    {
-                        Console.WriteLine("Address:");
-                        var ep = Console.ReadLine();
-                        Console.WriteLine("Key:");
-                        var keyStr = Console.ReadLine();
-                        Console.WriteLine("ID:");
-                        var id = Guid.Parse(Console.ReadLine());
+                        string[] inputArgs = input.Split(' ');
 
-                        byte[] key = StringToByteArray(keyStr);
-                        bool manualKeyRestoring = true;
-
-                        if (key.Count() == 0)
+                        switch (inputArgs[0])
                         {
-                            manualKeyRestoring = false;
-                        }
-
-                        IPEndPoint newParsedIP;
-                        IPEndPoint.TryParse(ep, out newParsedIP);
-                        IExternalNode newNode;
-                        if (newParsedIP != null)
-                        {
-                            newNode = network.ConnectManually(newParsedIP, !manualKeyRestoring, id);
-                            if (manualKeyRestoring)
-                            {
-                                newNode.RestoreSecurityKeys(key, () =>
+                            case "help":
+                            case "h":
+                                PrintHelp();
+                                break;
+                            case "showNetwork":
+                            case "sn":
+                                Console.WriteLine("\n==================");
+                                Console.WriteLine("Currently connected nodes:\n");
+                                Console.WriteLine("[Index] [Id] [Endpoint] [State]\n");
+                                int i = 0;
+                                foreach (var n in network.Nodes)
                                 {
-                                    Console.WriteLine("========= KEY FAILURE");
-                                });
-                            }
+                                    Console.WriteLine($"\t - ({i}) {n.Id}, {n.CurrentEndpoint}, " +
+                                        $"{Enum.GetName(typeof(NetworkController.UDP.ExternalNode.ConnectionState), n.CurrentState)}");
+                                    i++;
+                                }
+                                Console.WriteLine("==================");
+                                break;
+                            case "connect":
+                            case "ct":
+                                IPEndPoint.TryParse(inputArgs[1], out var newParsedIP);
+                                if (newParsedIP != null)
+                                {
+                                    network.ConnectManually(newParsedIP, true);
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Problem with parsing IP:Port");
+                                }
+                                Console.WriteLine("OK");
+                                break;
+                            case "chooseNode":
+                                if (inputArgs.Length == 2)
+                                {
+                                    currentNode = network.Nodes.ElementAt(int.Parse(inputArgs[1]));
+                                    Console.WriteLine($"Chosen node: {currentNode.Id}");
+                                }
+                                else { 
+                                    throw new Exception("Wrong number of arguments");
+                                }
+                                break;
+                            case "send":
+                                if(currentNode == null)
+                                {
+                                    throw new Exception("Choose node first");
+                                }
+                                currentNode.SendMessageSequentially((int)SomeCustomMessageTypes.Test1, new byte[] { 0, 1, 2, 3, 4, 5 });
+                                break;
+                            case "send2":
+                                if (currentNode == null)
+                                {
+                                    throw new Exception("Choose node first");
+                                }
+                                currentNode.SendMessageNonSequentially((int)SomeCustomMessageTypes.Test2, new byte[] { 0, 1, 2, 3, 4, 5 });
+                                break;
+                            case "send3":
+                                if (currentNode == null)
+                                {
+                                    throw new Exception("Choose node first");
+                                }
+                                currentNode.SendAndForget((int)SomeCustomMessageTypes.Test2, new byte[] { 0, 1, 2, 3, 4, 5 });
+                                break;
+                            default:
+                                Console.WriteLine("No such command");
+                                break;
                         }
                     }
-                    else if (currentKey.Key == ConsoleKey.Q)
+                    catch (Exception e)
                     {
-                        break;
+                        Console.WriteLine($"Couldn't process command: {e.Message}");
                     }
                 }
             }).Start();
@@ -162,28 +210,18 @@ namespace NetworkBuilderDemo
             await Task.Delay(Timeout.Infinite, applicationExitTokenSource.Token);
         }
 
-        private static void ListRefresh()
+        static void PrintHelp()
         {
-            Console.WriteLine("Id \t State \t Address");
-
-            foreach (var n in network.Nodes)
-            {
-                Console.WriteLine($"{n.Id} \t {Enum.GetName(typeof(ExternalNode.ConnectionState), n.CurrentState)} \t {n.CurrentEndpoint}");
-            }
-        }
-
-        public static string ByteArrayToString(byte[] ba)
-        {
-            return BitConverter.ToString(ba).Replace("-", "");
-        }
-
-        public static byte[] StringToByteArray(String hex)
-        {
-            int NumberChars = hex.Length;
-            byte[] bytes = new byte[NumberChars / 2];
-            for (int i = 0; i < NumberChars; i += 2)
-                bytes[i / 2] = Convert.ToByte(hex.Substring(i, 2), 16);
-            return bytes;
+            Console.WriteLine($"" +
+               $"Available commands:\n" +
+               $"==========NETWORK=========\n" +
+               $"* sn - show network\n" +
+               $"* ct [ip:port] - connect to node\n" +
+               $"* chooseNode [index] - choose node (you can see indexes by typing 'sn')" +
+               $"* send - send example message (ordering + retransmission)\n" +
+               $"* send2 - send example message (no ordering, just retramission)\n" +
+               $"* send3 - send example message (no ordering, no retranssmission, just UDP packet)\n" +
+               $"==========================\n\n");
         }
     }
 }
