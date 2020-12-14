@@ -21,6 +21,8 @@ namespace ConnectionsManager.MessageFramework
             Register(new HandshakeController(logger));
             Register(new NetworkBuildingController(logger));
             Register(new PingController(logger));
+            Register(new ConnectionRestoreController(logger));
+            Register(new ConnectionResetController(logger));
         }
 
         public void Register(MessageController newClass)

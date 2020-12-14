@@ -52,7 +52,11 @@ namespace NetworkControllerTests.IncomingMessages
             // Arrange
             var data = new HolePunchingResponse()
             {
-                DeviceId = newExternalNode.Object.Id
+                DeviceId = newExternalNode.Object.Id,
+                IPv4SeenExternally = "192.168.1.1",
+                IPv4SeenInternally = "127.0.0.1",
+                PortSeenExternally = 1234,
+                PortSeenInternally = 13000
             }.PackToBytes();
 
             // Assert
@@ -71,7 +75,12 @@ namespace NetworkControllerTests.IncomingMessages
             // Arrange
             var data = new HolePunchingResponse()
             {
-                DeviceId = newExternalNode.Object.Id
+                DeviceId = newExternalNode.Object.Id,
+                IPv4SeenExternally = "192.168.1.1",
+                IPv4SeenInternally = "127.0.0.1",
+                PortSeenExternally = 1234,
+                PortSeenInternally = 13000,
+                IsMasterNode = true
             }.PackToBytes();
 
             // Assert

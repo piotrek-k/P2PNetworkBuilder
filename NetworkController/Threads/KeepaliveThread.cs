@@ -42,7 +42,8 @@ namespace NetworkController.Threads
             {
                 for (int x = 0; x < 5; x++)
                 {
-                    _externalNode.SendBytes((int)MessageType.Ping, null, _externalNode.ClaimedPrivateEndpoint, false);
+                    //_externalNode.SendBytes((int)MessageType.Ping, null, _externalNode.ClaimedPrivateEndpoint, false);
+                    _externalNode.SendAndForget((int)MessageType.Ping, null, _externalNode.ClaimedPrivateEndpoint);
 
                     Thread.Sleep(MsBetweenInitialPings);
                 }
@@ -52,7 +53,8 @@ namespace NetworkController.Threads
             {
                 for (int x = 0; x < 5; x++)
                 {
-                    _externalNode.SendBytes((int)MessageType.Ping, null, _externalNode.PublicEndpoint, false);
+                    //_externalNode.SendBytes((int)MessageType.Ping, null, _externalNode.PublicEndpoint, false);
+                    _externalNode.SendAndForget((int)MessageType.Ping, null, _externalNode.PublicEndpoint);
 
                     Thread.Sleep(MsBetweenInitialPings);
                 }

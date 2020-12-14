@@ -22,6 +22,10 @@ namespace NetworkBuilderDemo
             network = new NetworkManagerFactory()
                 //.AddPersistentNodeStorage(new PlainTextFileNodeStorage("./keys.txt"))
                 .AddPersistentNodeStorage(new PlainTextFileNodeStorage(args[2]))
+                .AddConnectionResetRule((node) =>
+                {
+                    return true;
+                })
                 .Create();
 
             foreach (var a in args)
@@ -36,13 +40,13 @@ namespace NetworkBuilderDemo
                 parsedPort = 13000;
             }
 
-            network.StartListening(parsedPort);
-
             Guid parsedGuid;
             if (Guid.TryParse(args[1], out parsedGuid))
             {
                 network.DeviceId = parsedGuid;
             }
+
+            network.StartListening(parsedPort);
 
             network.RestorePreviousSessionFromStorage();
 
@@ -72,7 +76,12 @@ namespace NetworkBuilderDemo
                     if (currentKey.Key == ConsoleKey.S && currentNode != null)
                     {
                         Console.WriteLine("Sending...");
-                        currentNode.SendBytes(100, new byte[] { 0, 1, 2, 3, 4, 5 });
+                        currentNode.SendMessageSequentially(100, new byte[] { 0, 1, 2, 3, 4, 5 });
+                    }
+                    else if (currentKey.Key == ConsoleKey.D && currentNode != null)
+                    {
+                        Console.WriteLine("Sending...");
+                        currentNode.SendMessageNonSequentially(101, new byte[] { 0, 1, 2, 3, 4, 5 });
                     }
                     else if (currentKey.Key == ConsoleKey.N)
                     {

@@ -1,15 +1,13 @@
 ﻿using Microsoft.Extensions.Logging;
-using Microsoft.VisualStudio.TestPlatform.CommunicationUtilities.ObjectModel;
 using Moq;
 using NetworkController.UDP;
-using NetworkController.Models;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using Xunit;
 using System.Net;
-using NetworkController;
 using ConnectionsManager.Debugging;
+using TransmissionComponent;
+using NetworkController.DataTransferStructures;
 
 namespace NetworkControllerTests
 {
@@ -19,30 +17,35 @@ namespace NetworkControllerTests
         ILogger logger;
         ExternalNode externalNode;
         NetworkBehaviourTracker nbt;
+        Mock<ITransmissionHandler> transmissionHandler;
 
         public ExternalNodeTests()
         {
             logger = Mock.Of<ILogger<ExternalNodeTests>>();
             networkControllerMock = new Mock<NetworkController.Interfaces.ForTesting.INetworkControllerInternal>();
             nbt = new NetworkBehaviourTracker();
-            externalNode = new ExternalNode(new Guid(), networkControllerMock.Object, logger, nbt.NewSession());
+            transmissionHandler = new Mock<ITransmissionHandler>();
+            externalNode = new ExternalNode(new Guid(), networkControllerMock.Object, logger, nbt.NewSession(), transmissionHandler.Object);
         }
 
         [Fact]
-        public void SendBytes_Should_Encrypt_Data_If_Ses_Not_Null()
+        public void SendAndForget_Should_Encrypt_Data_If_SymmetricKey_Not_Null()
         {
             // Arrange
             byte[] bytesOnInput = new byte[] { 1, 2, 3 };
             byte[] bytesOnOutput = null;
-            DataFrame dataFrameOnOutput = null;
-            networkControllerMock.Setup(x => x.SendBytes(It.IsAny<byte[]>(), It.IsAny<IPEndPoint>()))
-                .Callback<byte[], IPEndPoint>((bytes, endpoint) => dataFrameOnOutput = DataFrame.Unpack(bytes));
+
             networkControllerMock.Setup(x => x.GetMessageTypes()).Returns(new List<Type>() { typeof(NetworkController.Models.MessageType) });
             externalNode.Ses = new NetworkController.Encryption.SymmetricEncryptionService();
 
+            transmissionHandler.Setup(x => x.SendMessageNoTracking(It.IsAny<IPEndPoint>(), It.IsAny<byte[]>(), It.IsAny<Guid>()))
+                .Callback<IPEndPoint, byte[], Guid>((endpoint, payload, id) =>
+                {
+                    bytesOnOutput = NC_DataFrame.Unpack(payload).Payload;
+                });
+
             // Act
             externalNode.SendAndForget((int)NetworkController.Models.MessageType.Unknown, bytesOnInput);
-            bytesOnOutput = dataFrameOnOutput.Payload;
 
             // Assert
             Assert.NotNull(bytesOnOutput);
@@ -53,17 +56,22 @@ namespace NetworkControllerTests
         public void InitializeConnection_Begins_Handshake_Process()
         {
             // Arrange
-            DataFrame dataFrameOnOutput = null;
-            networkControllerMock.Setup(x => x.SendBytes(It.IsAny<byte[]>(), It.IsAny<IPEndPoint>()))
-                .Callback<byte[], IPEndPoint>((bytes, endpoint) => dataFrameOnOutput = DataFrame.Unpack(bytes));
+            int sentMessageType = -1;
+
             networkControllerMock.Setup(x => x.GetMessageTypes()).Returns(new List<Type>() { typeof(NetworkController.Models.MessageType) });
+
+            transmissionHandler.Setup(x => x.SendMessageNoTracking(It.IsAny<IPEndPoint>(), It.IsAny<byte[]>(), It.IsAny<Guid>()))
+                .Callback<IPEndPoint, byte[], Guid>((endpoint, payload, id) =>
+                {
+                    sentMessageType = NC_DataFrame.Unpack(payload).MessageType;
+                });
 
             // Act
             externalNode.InitializeConnection();
 
             // Assert
-            networkControllerMock.Verify(x => x.SendBytes(It.IsAny<byte[]>(), It.IsAny<IPEndPoint>()));
-            Assert.True(dataFrameOnOutput.MessageType == (int)NetworkController.Models.MessageType.PublicKey);
+            transmissionHandler.Verify(x => x.SendMessageNoTracking(It.IsAny<IPEndPoint>(), It.IsAny<byte[]>(), It.IsAny<Guid>()));
+            Assert.True(sentMessageType == (int)NetworkController.Models.MessageType.PublicKey);
         }
 
         // TODO: Check if SendBytes decrypts incoming messages

@@ -7,6 +7,7 @@ using NetworkController.Interfaces.ForTesting;
 using System.Linq;
 using System.Net;
 using NetworkController.Models;
+using System;
 
 namespace NetworkController.UDP.MessageHandlers
 {
@@ -30,14 +31,35 @@ namespace NetworkController.UDP.MessageHandlers
         [IncomingMessage(MessageType.PublicKey)]
         public void IncomingPublicKey(IExternalNodeInternal source, byte[] bytes)
         {
-            //if(source.CurrentState != ExternalNode.ConnectionState.NotEstablished &&
-            //    source.CurrentState != ExternalNode.ConnectionState.Failed)
-            //{
-            //    _logger.LogError("Rejected public key. State is incorrect");
-            //    return;
-            //}
-
             var data = ConnectionInitPublicKey.Unpack(bytes);
+
+            if (source.ConnectionResetExpirationTime != null &&
+                source.ConnectionResetExpirationTime > DateTimeOffset.UtcNow)
+            {
+                // reset request was sent by this node and exernal node sent PublicKey as response
+
+                source.ConnectionResetExpirationTime = null;
+
+                if (data.RespondWithThisId == null)
+                {
+                    throw new Exception("Resetting connection: Public key doesn't contain proposed retransmission id");
+                }
+                else
+                {
+                    source.ForceResetOutgoingMessageCounter(data.RespondWithThisId.Value);
+                }
+            }
+            else
+            {
+                // it's not response to reset so it have to be connection initialization
+                // if it's unexpected, reject it.
+
+                if(source.Ses != null || source.Aes != null || source.IsHandshakeCompleted)
+                {
+                    throw new Exception("Illegal PublicKey request");
+                }
+            }
+
             source.Aes = new AsymmetricEncryptionService(data.RsaParams);
             source.Ses = new SymmetricEncryptionService();
 
@@ -46,11 +68,11 @@ namespace NetworkController.UDP.MessageHandlers
             {
                 AesKey = source.Ses.ExportKeys()
             }.PackToBytes();
-            source.SendBytes((int)MessageType.PrivateKey, dataToSend);
+            source.SendMessageSequentially((int)MessageType.PrivateKey, dataToSend);
 
             // sending additional info
             dataToSend = GenerateAdditionalInfo(source).PackToBytes();
-            source.SendBytes((int)MessageType.AdditionalInfo, dataToSend);
+            source.SendMessageSequentially((int)MessageType.AdditionalInfo, dataToSend);
         }
 
         [IncomingMessage(MessageType.PrivateKey)]
@@ -62,7 +84,7 @@ namespace NetworkController.UDP.MessageHandlers
 
             var dataToSend = GenerateAdditionalInfo(source).PackToBytes();
 
-            source.SendBytes((int)MessageType.AdditionalInfo, dataToSend);
+            source.SendMessageSequentially((int)MessageType.AdditionalInfo, dataToSend);
         }
 
         [IncomingMessage(MessageType.AdditionalInfo)]
@@ -85,7 +107,7 @@ namespace NetworkController.UDP.MessageHandlers
 
                     if (foundNode == null)
                     {
-                        source.SendBytes((int)MessageType.HolePunchingRequest, new HolePunchingRequest()
+                        source.SendMessageSequentially((int)MessageType.HolePunchingRequest, new HolePunchingRequest()
                         {
                             RequestedDeviceId = incomingNodeId
                         }.PackToBytes());
@@ -109,7 +131,7 @@ namespace NetworkController.UDP.MessageHandlers
 
             // sending additional info
             var dataToSend = GenerateAdditionalInfo(source).PackToBytes();
-            source.SendBytes((int)MessageType.AdditionalInfo, dataToSend);
+            source.SendMessageSequentially((int)MessageType.AdditionalInfo, dataToSend);
         }
     }
 }

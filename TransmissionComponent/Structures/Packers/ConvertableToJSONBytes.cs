@@ -1,16 +1,15 @@
 ﻿using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.Text;
 
-namespace NetworkController.DataTransferStructures
+namespace TransmissionComponent.Structures.Packers
 {
     [Serializable]
     public abstract class ConvertableToJSONBytes<T>
     {
         public byte[] PackToBytes()
         {
-            string asString = Newtonsoft.Json.JsonConvert.SerializeObject(this);
+            string asString = JsonConvert.SerializeObject(this);
             byte[] asBytes = Encoding.UTF8.GetBytes(asString);
             return asBytes;
         }

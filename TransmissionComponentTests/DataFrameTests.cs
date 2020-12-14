@@ -1,12 +1,12 @@
-using NetworkController;
-using NetworkController.DataTransferStructures.Packers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using TransmissionComponent.Structures;
+using TransmissionComponent.Structures.Packers;
 using Xunit;
 
-namespace NetworkControllerTests
+namespace TransmissionComponentTests
 {
     public class DataFrameTests
     {
@@ -18,8 +18,6 @@ namespace NetworkControllerTests
             df.SourceNodeIdGuid = new Guid();
             df.Payload = new byte[] { 1, 2, 3 };
             df.ExpectAcknowledge = true;
-            df.MessageType = 15;
-            df.IV = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
             df.RetransmissionId = 50;
 
             // Act
@@ -29,10 +27,36 @@ namespace NetworkControllerTests
             // Assert
             Assert.Equal(df.SourceNodeIdGuid, receivedFrame.SourceNodeIdGuid);
             Assert.Equal(df.Payload, receivedFrame.Payload);
-            Assert.Equal(df.MessageType, receivedFrame.MessageType);
             Assert.Equal(df.ExpectAcknowledge, receivedFrame.ExpectAcknowledge);
-            Assert.Equal(df.IV, receivedFrame.IV);
             Assert.Equal(df.RetransmissionId, receivedFrame.RetransmissionId);
+        }
+
+        [Fact]
+        public void Flags_Should_Be_Read_Properly()
+        {
+            DataFrame df = new DataFrame();
+            df.ExpectAcknowledge = true;
+            df.SendSequentially = true;
+            df.ReceiveAck = true;
+
+            byte[] bytesToTransmit = df.PackToBytes();
+            DataFrame receivedFrame = DataFrame.Unpack(bytesToTransmit);
+
+            Assert.True(receivedFrame.ExpectAcknowledge);
+            Assert.True(receivedFrame.SendSequentially);
+            Assert.True(receivedFrame.ReceiveAck);
+
+            df = new DataFrame();
+            df.ExpectAcknowledge = false;
+            df.SendSequentially = false;
+            df.ReceiveAck = false;
+
+            bytesToTransmit = df.PackToBytes();
+            receivedFrame = DataFrame.Unpack(bytesToTransmit);
+
+            Assert.False(receivedFrame.ExpectAcknowledge);
+            Assert.False(receivedFrame.SendSequentially);
+            Assert.False(receivedFrame.ReceiveAck);
         }
 
         [Fact]
@@ -43,8 +67,6 @@ namespace NetworkControllerTests
             df.SourceNodeIdGuid = new Guid();
             df.Payload = null;
             df.ExpectAcknowledge = true;
-            df.MessageType = 15;
-            df.IV = null;
             df.RetransmissionId = 50;
 
             // Act
@@ -54,9 +76,7 @@ namespace NetworkControllerTests
             // Assert
             Assert.Equal(df.SourceNodeIdGuid, receivedFrame.SourceNodeIdGuid);
             Assert.Equal(df.Payload, receivedFrame.Payload);
-            Assert.Equal(df.MessageType, receivedFrame.MessageType);
             Assert.Equal(df.ExpectAcknowledge, receivedFrame.ExpectAcknowledge);
-            Assert.Equal(df.IV, receivedFrame.IV);
             Assert.Equal(df.RetransmissionId, receivedFrame.RetransmissionId);
         }
 
@@ -96,8 +116,6 @@ namespace NetworkControllerTests
             df.SourceNodeIdGuid = new Guid();
             df.Payload = new byte[] { 1, 2, 3 };
             df.ExpectAcknowledge = true;
-            df.MessageType = 15;
-            df.IV = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
             df.RetransmissionId = 50;
 
             // Act

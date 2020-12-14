@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using TransmissionComponent.Structures.Packers;
 
 namespace NetworkController.DataTransferStructures
 {
@@ -15,5 +16,6 @@ namespace NetworkController.DataTransferStructures
         /// Used for making sure that data can be decrypted
         /// </summary>
         public string SampleDataForEncryptionVerification { get; set; }
+        public int IdOfNextMessageYouSend { get; set; }
     }
 }

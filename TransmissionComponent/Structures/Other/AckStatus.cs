@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace NetworkController.DataTransferStructures.Other
+namespace TransmissionComponent.Structures.Other
 {
     public enum AckStatus : int
     {

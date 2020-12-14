@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Reflection;
-using NetworkController.DataTransferStructures.Packers;
 using System.Linq;
 
-namespace NetworkController.DataTransferStructures
+namespace TransmissionComponent.Structures.Packers
 {
     [Serializable]
     public abstract class ConvertableToFixedByteStruct<T> where T : new()
@@ -63,6 +61,10 @@ namespace NetworkController.DataTransferStructures
                     if (p.PropertyType == typeof(byte[]))
                     {
                         valueAsBytes = (byte[])value;
+                    }
+                    else if(p.PropertyType == typeof(byte))
+                    {
+                        valueAsBytes = new byte[1] { (byte)value };
                     }
                     else
                     {
@@ -166,6 +168,10 @@ namespace NetworkController.DataTransferStructures
                                 encodedData.Skip(startIndex).Take(o.fixedSize.SizeInBytes).ToArray());
                         }
                     }
+                }
+                else if(o.prop.PropertyType == typeof(byte))
+                {
+                    o.prop.SetValue(result, encodedData[startIndex]);
                 }
                 else
                 {

@@ -2,7 +2,7 @@
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 
-namespace NetworkController.DataTransferStructures
+namespace TransmissionComponent.Structures.Packers
 {
     [Serializable]
     public abstract class ConvertableToBytes<T>

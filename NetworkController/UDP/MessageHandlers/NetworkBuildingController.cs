@@ -47,8 +47,8 @@ namespace NetworkController.UDP.MessageHandlers
                 PortSeenInternally = connectRequester.ClaimedPrivateEndpoint.Port
             };
 
-            connectRequester.SendBytes((int)MessageType.HolePunchingResponse, responseToRequester.PackToBytes());
-            nodeToWhichSourceWantToConnect.SendBytes((int)MessageType.HolePunchingResponse, informationToConnectionTarget.PackToBytes());
+            connectRequester.SendMessageSequentially((int)MessageType.HolePunchingResponse, responseToRequester.PackToBytes());
+            nodeToWhichSourceWantToConnect.SendMessageSequentially((int)MessageType.HolePunchingResponse, informationToConnectionTarget.PackToBytes());
         }
 
         [IncomingMessage(MessageType.HolePunchingResponse)]

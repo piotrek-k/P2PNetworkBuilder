@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Text;
 
-namespace NetworkController.DataTransferStructures.Packers
+namespace TransmissionComponent.Structures.Packers
 {
     [AttributeUsage(AttributeTargets.Property)]
     public class FixedSizeAttribute : Attribute
