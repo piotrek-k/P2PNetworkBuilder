@@ -47,7 +47,7 @@ jobs:
           
           # Prepare directory
           mkdir -p ./nugets
-          rm -i ./nugets/*.nupkg
+          rm -f ./nugets/*.nupkg
           
           # Pack Nuget package
           dotnet pack ./nugets /p:RELEASE_VERSION=${RELEASE_VERSION}
