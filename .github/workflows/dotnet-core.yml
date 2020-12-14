@@ -26,6 +26,7 @@ jobs:
 
   publish:
     runs-on: ubuntu-latest
+    needs: [build]
     steps:
       - uses: actions/checkout@v2
       - name: Setup .NET Core
@@ -37,6 +38,11 @@ jobs:
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
+          # Verbose
+          set -x
+          
+          cd ./NetworkController
+          
           # Restore .NET tools
           dotnet tool restore
           
@@ -45,10 +51,10 @@ jobs:
           
           # Prepare directory
           mkdir -p ./nugets
-          rm -i ./nugets/*.nupkg
+          rm -f ./nugets/*.nupkg
           
           # Pack Nuget package
-          dotnet pack ./nugets /p:RELEASE_VERSION=${RELEASE_VERSION}
+          dotnet pack -o ./nugets /p:RELEASE_VERSION=${RELEASE_VERSION}
           
           # Find path
           file_name=`find ./nugets -maxdepth 1 -name "*.nupkg" -print -quit || exit 1`
