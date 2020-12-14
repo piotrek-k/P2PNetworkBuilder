@@ -23,3 +23,36 @@ jobs:
       run: dotnet build --configuration Release --no-restore
     - name: Test
       run: dotnet test --no-restore --verbosity normal
+
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 3.1.301
+      - name: Build And Publish
+        shell: bash
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          # Restore .NET tools
+          dotnet tool restore
+          
+          # Get the version number
+          RELEASE_VERSION=$(dotnet minver -t v -v e -d preview)
+          
+          # Prepare directory
+          mkdir -p ./nugets
+          rm -i ./nugets/*.nupkg
+          
+          # Pack Nuget package
+          dotnet pack ./nugets /p:RELEASE_VERSION=${RELEASE_VERSION}
+          
+          # Find path
+          file_name=`find ./nugets -maxdepth 1 -name "*.nupkg" -print -quit || exit 1`
+          
+          # Publish
+          dotnet nuget push ${file_name} --api-key ${NUGET_API_KEY} --source https://api.nuget.org/v3/index.json
+      
