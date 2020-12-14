@@ -8,6 +8,8 @@
     <Version>$(RELEASE_VERSION)</Version>
     <Copyright>Copyright 2020 Piotr Kozerski. All rights reserved.</Copyright>
     <PackageTags>network p2p peer-to-peer peertopeer</PackageTags>
+    <RepositoryUrl>https://github.com/piotrek-k/P2PNetworkBuilder</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
   <ItemGroup>
