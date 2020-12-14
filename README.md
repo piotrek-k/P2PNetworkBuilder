@@ -1,19 +1,19 @@
-# NetworkController
+# P2PNetworkBuilder
 
 <p align="center">
     <img src=".readme/schema1.png" width="400">
 </p>
 
 <p align="center">
-    <a href="" alt="Badge with build status">
-        <img src="https://img.shields.io/github/workflow/status/piotrek-k/NetworkBuilder/.NET%20Core" /></a>
-    <a href="" alt="Version on NuGet">
-        <img src="https://img.shields.io/nuget/v/NetworkController" /></a>
-    <a href="" alt="Pre-prelease on Nuget">
-        <img src="https://img.shields.io/nuget/vpre/NetworkController" /></a>
+    <a href="https://github.com/piotrek-k/P2PNetworkBuilder" alt="Badge with build status">
+        <img src="https://img.shields.io/github/workflow/status/piotrek-k/P2PNetworkBuilder/Build,%20test%20and%20publish" /></a>
+    <a href="https://www.nuget.org/packages/P2PNetworkBuilder/" alt="Version on NuGet">
+        <img src="https://img.shields.io/nuget/v/P2PNetworkBuilder" /></a>
+    <a href="https://www.nuget.org/packages/P2PNetworkBuilder/" alt="Pre-prelease on Nuget">
+        <img src="https://img.shields.io/nuget/vpre/P2PNetworkBuilder" /></a>
 </p>
 
-NetworkController is a tool that provides a framework for creating networks of devices in Peer-to-peer manner. Is such networks, all devices are connected to each other. You can use it as a backbone of decentralized systems.
+`P2PNetworkBuilder` is a tool that provides a framework for creating networks of devices in Peer-to-peer manner. Is such networks, all devices are connected to each other. You can use it as a backbone of decentralized systems.
 
 Key features:
 
