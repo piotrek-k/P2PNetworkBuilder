@@ -73,6 +73,10 @@ namespace TransmissionComponent
                         // seems to be a retransmission
                     }
                 }
+                else
+                {
+                    _logger.LogTrace($"Message omitted. Unexpected retransmission id {df.RetransmissionId}");
+                }
             }
             else if (
                 (
@@ -100,7 +104,7 @@ namespace TransmissionComponent
             }
             else
             {
-                throw new Exception("Don't know how to handle this message");
+                _logger.LogError($"Don't know how to handle this message {df.RetransmissionId}");
             }
         }
 

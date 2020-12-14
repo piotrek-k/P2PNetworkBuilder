@@ -61,7 +61,7 @@ namespace TransmissionComponentTests
             // Counter reset
             knownSource.ResetIncomingMessagesCounter(-4 * idModifier);
 
-            // These messages should be rejected
+            // These messages should have no effect
             knownSource.HandleNewMessage(endpoint, new DataFrame()
             {
                 RetransmissionId = 3 * idModifier,

@@ -1,13 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
 using Moq;
-using NetworkController.DataTransferStructures.Other;
 using NetworkController.Interfaces.ForTesting;
 using NetworkController.Models;
 using NetworkController.UDP.MessageHandlers;
-using System;
-using System.Collections.Generic;
-using System.Net.NetworkInformation;
-using System.Text;
+using System.Net;
 using Xunit;
 
 namespace NetworkControllerTests.IncomingMessages
@@ -40,7 +36,7 @@ namespace NetworkControllerTests.IncomingMessages
 
             // Assert
             externalNodeMock.Verify(x => x.SendAndForget(
-                It.Is<int>(y => y == (int)MessageType.PingResponse), It.IsAny<byte[]>()),
+                It.Is<int>(y => y == (int)MessageType.PingResponse), It.IsAny<byte[]>(), It.IsAny<IPEndPoint>()),
                 Times.Once);
         }
 
@@ -54,7 +50,7 @@ namespace NetworkControllerTests.IncomingMessages
             pingController.IncomingPingResponse(externalNodeMock.Object, null);
 
             // Assert
-            externalNodeMock.Verify(x => x.InitializeConnection(It.IsAny<uint?>()),
+            externalNodeMock.Verify(x => x.InitializeConnection(It.IsAny<int?>()),
                 Times.Once);
             Assert.False(externalNodeMock.Object.AfterHolePunchingResponse_WaitingForPingResponse);
         }
@@ -66,8 +62,8 @@ namespace NetworkControllerTests.IncomingMessages
             pingController.IncomingPingResponse(externalNodeMock.Object, null);
 
             // Assert
-            externalNodeMock.Verify(x => x.SendBytes(
-                It.Is<int>(y => y == (int)MessageType.PingResponse), It.IsAny<byte[]>(), It.IsAny<Action<AckStatus>>()),
+            externalNodeMock.Verify(x => x.SendAndForget(
+                It.Is<int>(y => y == (int)MessageType.PingResponse), It.IsAny<byte[]>(), It.IsAny<IPEndPoint>()),
                 Times.Never);
         }
     }
