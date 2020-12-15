@@ -58,7 +58,7 @@ jobs:
           rm -f ./nugets/*.nupkg
           
           # Pack Nuget package
-          dotnet pack -o ./nugets /p:RELEASE_VERSION=${RELEASE_VERSION}
+          dotnet pack -o ./nugets /p:RELEASE_VERSION=${RELEASE_VERSION} -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg
           
           # Find path
           file_name=`find ./nugets -maxdepth 1 -name "*.nupkg" -print -quit || exit 1`
