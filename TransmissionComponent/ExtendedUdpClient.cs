@@ -191,7 +191,13 @@ namespace TransmissionComponent
         private void SendMessage(IPEndPoint endPoint, byte[] payload, Guid source, Guid destination, bool sequentially, Action<AckStatus> callback = null)
         {
             KnownSource foundSource = FindOrCreateSource(destination);
-            int retransmissionId = foundSource.NextIdForMessageToSend;
+
+            int retransmissionId;
+            lock (foundSource.OutgoingMessageCounterLock)
+            {
+                retransmissionId = foundSource.NextIdForMessageToSend;
+                foundSource.SetIdForMessageToSendToNextValue();
+            }
 
             var dataFrame = new DataFrame
             {
@@ -218,8 +224,6 @@ namespace TransmissionComponent
             Thread thread = new Thread(() => RetransmissionThread(dataFrame.RetransmissionId, tm, foundSource));
             thread.IsBackground = true;
             thread.Start();
-
-            foundSource.SetIdForMessageToSendToNextValue();
         }
 
         /// <summary>

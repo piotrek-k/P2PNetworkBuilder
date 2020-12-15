@@ -9,8 +9,45 @@ namespace TransmissionComponent
 {
     internal class KnownSource
     {
-        internal int NextExpectedIncomingMessageId { get; private set; } = 1;
-        internal int NextIdForMessageToSend { get; private set; } = 1;
+        int _nextExpectedIncomingMessageId = 1;
+        internal int NextExpectedIncomingMessageId
+        {
+            get
+            {
+                lock (IncomingMessageCounterLock)
+                {
+                    return _nextExpectedIncomingMessageId;
+                }
+            }
+            private set
+            {
+                lock (IncomingMessageCounterLock)
+                {
+                    _nextExpectedIncomingMessageId = value;
+                }
+            }
+        }
+        internal readonly object IncomingMessageCounterLock = new object();
+
+        int _nextIdForMessageToSend = 1;
+        internal int NextIdForMessageToSend
+        {
+            get
+            {
+                lock (OutgoingMessageCounterLock)
+                {
+                    return _nextIdForMessageToSend;
+                }
+            }
+            private set
+            {
+                lock (OutgoingMessageCounterLock)
+                {
+                    _nextIdForMessageToSend = value;
+                }
+            }
+        }
+        internal readonly object OutgoingMessageCounterLock = new object();
 
         private ExtendedUdpClient _euc;
         private Guid _deviceId;
