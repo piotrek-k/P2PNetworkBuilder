@@ -10,7 +10,26 @@
     <PackageTags>network p2p peer-to-peer peertopeer</PackageTags>
     <RepositoryUrl>https://github.com/piotrek-k/P2PNetworkBuilder</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+    
+    <!-- Solution to include local dependencies https://github.com/NuGet/Home/issues/3891#issuecomment-569491001 -->
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
   </PropertyGroup>
+
+  <!-- Solution to include local dependencies https://github.com/NuGet/Home/issues/3891#issuecomment-569491001 -->
+  <Target Name="CopyProjectReferencesToPackage" DependsOnTargets="BuildOnlySettings;ResolveReferences">
+    <ItemGroup>
+      <!-- Filter out unnecessary files -->
+      <_ReferenceCopyLocalPaths Include="@(ReferenceCopyLocalPaths->WithMetadataValue('ReferenceSourceTarget', 'ProjectReference')->WithMetadataValue('PrivateAssets', 'All'))"/>
+    </ItemGroup>
+
+    <!-- Print batches for debug purposes -->
+    <Message Text="Batch for .nupkg: ReferenceCopyLocalPaths = @(_ReferenceCopyLocalPaths), ReferenceCopyLocalPaths.DestinationSubDirectory = %(_ReferenceCopyLocalPaths.DestinationSubDirectory) Filename = %(_ReferenceCopyLocalPaths.Filename) Extension = %(_ReferenceCopyLocalPaths.Extension)" Importance="High" Condition="'@(_ReferenceCopyLocalPaths)' != ''" />
+
+    <ItemGroup>
+      <!-- Add file to package with consideration of sub folder. If empty, the root folder is chosen. -->
+      <BuildOutputInPackage Include="@(_ReferenceCopyLocalPaths)" TargetPath="%(_ReferenceCopyLocalPaths.DestinationSubDirectory)"/>
+    </ItemGroup>
+  </Target>
 
   <ItemGroup>
     <Compile Remove="nugets\**" />
@@ -29,7 +48,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TransmissionComponent\TransmissionComponent.csproj" />
+    <ProjectReference Include="..\TransmissionComponent\TransmissionComponent.csproj" PrivateAssets="All" />
   </ItemGroup>
 
 </Project>

@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NetworkController\NetworkController.csproj" />
+    <ProjectReference Include="..\TransmissionComponent\TransmissionComponent.csproj" />
   </ItemGroup>
 
 </Project>
