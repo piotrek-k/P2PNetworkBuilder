@@ -28,6 +28,7 @@ namespace TransmissionComponent
         /// Stores `KnownSource` class instance for each Guid that ever appeared in any incoming message
         /// </summary>
         internal Dictionary<Guid, KnownSource> KnownSources = new Dictionary<Guid, KnownSource>();
+        object knownSourcesLock = new object();
 
         /// <summary>
         /// Function that will be executed each time message arrives (after ordering and filtration done by component)
@@ -153,13 +154,16 @@ namespace TransmissionComponent
         internal KnownSource FindOrCreateSource(Guid id)
         {
             KnownSource foundSource;
-            KnownSources.TryGetValue(id, out foundSource);
-
-            if (foundSource == null)
+            lock (knownSourcesLock)
             {
-                _logger.LogDebug($"Created new KnownSource for id {id}");
-                foundSource = new KnownSource(this, id, _logger);
-                KnownSources.Add(id, foundSource);
+                KnownSources.TryGetValue(id, out foundSource);
+
+                if (foundSource == null)
+                {
+                    _logger.LogDebug($"Created new KnownSource for id {id}");
+                    foundSource = new KnownSource(this, id, _logger);
+                    KnownSources.Add(id, foundSource);
+                }
             }
 
             return foundSource;
