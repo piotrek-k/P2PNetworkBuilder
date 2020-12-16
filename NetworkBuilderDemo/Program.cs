@@ -197,53 +197,30 @@ namespace NetworkBuilderDemo
                                 currentNode.SendAndForget((int)SomeCustomMessageTypes.Test2, new byte[] { 0, 1, 2, 3, 4, 5 });
                                 break;
                             case "st1":
-                                if (currentNode == null)
+                                StressTester.StartTesting(currentNode, (st_values) =>
                                 {
-                                    throw new Exception("Choose node");
-                                }
-                                Console.WriteLine("You can top testing by pressing 'q'. Type 'ok' to begin.");
-                                if (Console.ReadLine().Trim().ToLower().Equals("ok"))
+                                    currentNode.SendMessageSequentially((int)SomeCustomMessageTypes.Test1, new byte[] { 0, 1, 2, 3, 4, 5 }, (status) =>
+                                    {
+                                        st_values.CounterOfReceivedMessages++;
+                                        if (status != TransmissionComponent.Structures.Other.AckStatus.Success)
+                                        {
+                                            throw new Exception("Message not processed successfully");
+                                        }
+                                    });
+                                });
+                                break;
+                            case "st2":
+                                StressTester.StartTesting(currentNode, (st_values) =>
                                 {
-                                    try
+                                    currentNode.SendMessageNonSequentially((int)SomeCustomMessageTypes.Test1, new byte[] { 0, 1, 2, 3, 4, 5 }, (status) =>
                                     {
-                                        ConsoleKeyInfo key;
-                                        int counterOfSentMessages = 0;
-                                        int counterOfReceivedMessages = 0;
-                                        var thread = new Thread(() =>
+                                        st_values.CounterOfReceivedMessages++;
+                                        if (status != TransmissionComponent.Structures.Other.AckStatus.Success)
                                         {
-                                            do
-                                            {
-                                                while (!Console.KeyAvailable)
-                                                {
-
-                                                    counterOfSentMessages++;
-
-                                                    currentNode.SendMessageSequentially((int)SomeCustomMessageTypes.Test1, new byte[] { 0, 1, 2, 3, 4, 5 }, (status) =>
-                                                    {
-                                                        counterOfReceivedMessages++;
-                                                        if (status != TransmissionComponent.Structures.Other.AckStatus.Success)
-                                                        {
-                                                            throw new Exception("Message not processed successfully");
-                                                        }
-                                                    });
-                                                }
-                                            } while (Console.ReadKey(true).Key != ConsoleKey.Q);
-                                        });
-                                        //thread.IsBackground = true;
-                                        thread.Start();
-                                        thread.Join();
-
-                                        do
-                                        {
-                                            Thread.Sleep(1000);
-                                            Console.WriteLine($"Waiting for callbacks. Received {counterOfReceivedMessages} out of {counterOfSentMessages}");
-                                        } while (counterOfReceivedMessages != counterOfSentMessages); //Console.ReadKey(true).Key != ConsoleKey.Q || 
-                                    }
-                                    catch (Exception e)
-                                    {
-                                        Console.WriteLine($"Cought exception: {e.Message}");
-                                    }
-                                }
+                                            throw new Exception("Message not processed successfully");
+                                        }
+                                    });
+                                });
                                 break;
                             default:
                                 Console.WriteLine("No such command");
@@ -272,6 +249,7 @@ namespace NetworkBuilderDemo
                $"* send2 - send example message (no ordering, just retramission)\n" +
                $"* send3 - send example message (no ordering, no retranssmission, just UDP packet)\n" +
                $"* st1 - stress testing - using ordered (sequential) messages\n" +
+               $"* st2 - stress testing - using unordered (nonsequential) messages\n" +
                $"==========================\n\n");
         }
     }
