@@ -46,6 +46,8 @@ namespace TransmissionComponent
 
         public int MaxPacketSize { get; set; } = 65407;
 
+        Random rnd = new Random();
+
         public ExtendedUdpClient(ILogger logger, Guid deviceId)
         {
             _logger = logger;
@@ -87,68 +89,79 @@ namespace TransmissionComponent
         {
             IPEndPoint senderIpEndPoint = new IPEndPoint(0, 0);
             var receivedData = udpClient.EndReceive(ar, ref senderIpEndPoint);
-            DataFrame df = DataFrame.Unpack(receivedData);
-            KnownSource foundSource = FindOrCreateSource(df.SourceNodeIdGuid);
 
-            if (df.ReceiveAck)
+            try
             {
-                TrackedMessage tm;
-                AckStatus status = AckStatus.Failure; // failure by default
 
-                lock (foundSource.trackedMessagesLock)
+                DataFrame df = DataFrame.Unpack(receivedData);
+                KnownSource foundSource = FindOrCreateSource(df.SourceNodeIdGuid);
+
+                if (df.ReceiveAck)
                 {
-                    foundSource.TrackedOutgoingMessages.TryGetValue(df.RetransmissionId, out tm);
-                }
+                    TrackedMessage tm;
+                    AckStatus status = AckStatus.Failure; // failure by default
 
-                if (tm == null)
-                {
-                    _logger.LogTrace($"Received ack for {df.RetransmissionId} but is not present in TrackedMessages (key: {df.SourceNodeIdGuid})");
-                    return;
-                }
-                _logger.LogTrace($"Received ack for {df.RetransmissionId} and processing...");
+                    lock (foundSource.trackedMessagesLock)
+                    {
+                        foundSource.TrackedOutgoingMessages.TryGetValue(df.RetransmissionId, out tm);
+                    }
 
-                if (df.Payload != null)
+                    if (tm == null)
+                    {
+                        _logger.LogTrace($"Received ack for {df.RetransmissionId} but is not present in TrackedMessages (key: {df.SourceNodeIdGuid})");
+                        return;
+                    }
+                    _logger.LogTrace($"Received ack for {df.RetransmissionId} and processing...");
+
+                    if (df.Payload != null)
+                    {
+                        try
+                        {
+                            ReceiveAcknowledge ra = ReceiveAcknowledge.Unpack(df.Payload);
+                            status = (AckStatus)ra.Status;
+                        }
+                        catch (Exception e)
+                        {
+                            _logger.LogError($"Error while handling ReceiveAck. {e.Message}");
+                        }
+                    }
+
+                    if (tm != null && tm.Callback != null)
+                    {
+                        tm.Callback(status);
+                    }
+
+                    lock (foundSource.trackedMessagesLock)
+                    {
+                        foundSource.TrackedOutgoingMessages.Remove(df.RetransmissionId);
+                    }
+
+                    // wake up retransmission thread in order to remove it
+                    lock (tm.ThreadLock)
+                    {
+                        Monitor.Pulse(tm.ThreadLock);
+                    }
+                }
+                else
                 {
                     try
                     {
-                        ReceiveAcknowledge ra = ReceiveAcknowledge.Unpack(df.Payload);
-                        status = (AckStatus)ra.Status;
+                        foundSource.HandleNewMessage(senderIpEndPoint, df);
                     }
                     catch (Exception e)
                     {
-                        _logger.LogError($"Error while handling ReceiveAck. {e.Message}");
+                        _logger.LogError($"Error while processing message. {e.Message}");
                     }
                 }
-
-                if (tm != null && tm.Callback != null)
-                {
-                    tm.Callback(status);
-                }
-
-                lock (foundSource.trackedMessagesLock)
-                {
-                    foundSource.TrackedOutgoingMessages.Remove(df.RetransmissionId);
-                }
-
-                // wake up retransmission thread in order to remove it
-                lock (tm.ThreadLock)
-                {
-                    Monitor.Pulse(tm.ThreadLock);
-                }
             }
-            else
+            catch(Exception e)
             {
-                try
-                {
-                    foundSource.HandleNewMessage(senderIpEndPoint, df);
-                }
-                catch (Exception e)
-                {
-                    _logger.LogError($"Error while processing message. {e.Message}");
-                }
+                _logger.LogError($"Error caught while receving message {e.Message}");
             }
-
-            udpClient.BeginReceive(new AsyncCallback(HandleIncomingMessages), null);
+            finally
+            {
+                udpClient.BeginReceive(new AsyncCallback(HandleIncomingMessages), null);
+            }
         }
 
         internal KnownSource FindOrCreateSource(Guid id)
@@ -276,9 +289,9 @@ namespace TransmissionComponent
                 throw new Exception($"Data packet of size {bytes.Length} exceeded maximal allowed size ({MaxPacketSize})");
             }
 
-            _logger.LogDebug($"Sent ReceiveAck for {messageId} from {source}");
+            int numOfBytes = udpClient.Send(bytes, bytes.Length, endPoint);
 
-            udpClient.Send(bytes, bytes.Length, endPoint);
+            _logger.LogDebug($"Sent ReceiveAck for {messageId} from {source}. {numOfBytes} bytes");
         }
 
         internal void RetransmissionThread(int messageId, TrackedMessage tm, KnownSource ks)
@@ -290,7 +303,7 @@ namespace TransmissionComponent
             {
                 lock (tm.ThreadLock)
                 {
-                    Monitor.Wait(tm.ThreadLock, checked((int)WaitingTimeBetweenRetransmissions));
+                    Monitor.Wait(tm.ThreadLock, checked((int)WaitingTimeBetweenRetransmissions + rnd.Next(0, 5000)));
                 }
 
                 lock (ks.trackedMessagesLock)

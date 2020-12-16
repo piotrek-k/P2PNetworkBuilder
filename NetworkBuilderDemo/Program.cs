@@ -209,30 +209,35 @@ namespace NetworkBuilderDemo
                                         ConsoleKeyInfo key;
                                         int counterOfSentMessages = 0;
                                         int counterOfReceivedMessages = 0;
-                                        do
+                                        var thread = new Thread(() =>
                                         {
-                                            while (!Console.KeyAvailable)
+                                            do
                                             {
-
-                                                counterOfSentMessages++;
-
-                                                currentNode.SendMessageSequentially((int)SomeCustomMessageTypes.Test1, new byte[] { 0, 1, 2, 3, 4, 5 }, (status) =>
+                                                while (!Console.KeyAvailable)
                                                 {
-                                                    counterOfReceivedMessages++;
-                                                    if (status != TransmissionComponent.Structures.Other.AckStatus.Success)
-                                                    {
-                                                        throw new Exception("Message not processed successfully");
-                                                    }
-                                                });
-                                            }
-                                        } while (Console.ReadKey(true).Key != ConsoleKey.Q);
 
-                                        Console.WriteLine("Waiting for callbacks...");
+                                                    counterOfSentMessages++;
+
+                                                    currentNode.SendMessageSequentially((int)SomeCustomMessageTypes.Test1, new byte[] { 0, 1, 2, 3, 4, 5 }, (status) =>
+                                                    {
+                                                        counterOfReceivedMessages++;
+                                                        if (status != TransmissionComponent.Structures.Other.AckStatus.Success)
+                                                        {
+                                                            throw new Exception("Message not processed successfully");
+                                                        }
+                                                    });
+                                                }
+                                            } while (Console.ReadKey(true).Key != ConsoleKey.Q);
+                                        });
+                                        //thread.IsBackground = true;
+                                        thread.Start();
+                                        thread.Join();
 
                                         do
                                         {
                                             Thread.Sleep(1000);
-                                        } while (Console.ReadKey(true).Key != ConsoleKey.Q || counterOfReceivedMessages == counterOfSentMessages);
+                                            Console.WriteLine($"Waiting for callbacks. Received {counterOfReceivedMessages} out of {counterOfSentMessages}");
+                                        } while (counterOfReceivedMessages != counterOfSentMessages); //Console.ReadKey(true).Key != ConsoleKey.Q || 
                                     }
                                     catch (Exception e)
                                     {
