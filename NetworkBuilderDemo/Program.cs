@@ -23,7 +23,7 @@ namespace NetworkBuilderDemo
             // run command example:
             // ./NetworkBuilderDemo 13001 9e6f77c3-3b80-4c95-a547-44f96aca0044 ./keys.txt
 
-            if(args.Count() < 3)
+            if (args.Count() < 3)
             {
                 Console.WriteLine("3 arguments needed:");
                 Console.WriteLine("[port] [guid] [file_name]");
@@ -170,30 +170,75 @@ namespace NetworkBuilderDemo
                                     currentNode = network.Nodes.ElementAt(int.Parse(inputArgs[1]));
                                     Console.WriteLine($"Chosen node: {currentNode.Id}");
                                 }
-                                else { 
+                                else
+                                {
                                     throw new Exception("Wrong number of arguments");
                                 }
                                 break;
                             case "send":
-                                if(currentNode == null)
+                                if (currentNode == null)
                                 {
-                                    throw new Exception("Choose node first");
+                                    throw new Exception("Choose node");
                                 }
                                 currentNode.SendMessageSequentially((int)SomeCustomMessageTypes.Test1, new byte[] { 0, 1, 2, 3, 4, 5 });
                                 break;
                             case "send2":
                                 if (currentNode == null)
                                 {
-                                    throw new Exception("Choose node first");
+                                    throw new Exception("Choose node");
                                 }
                                 currentNode.SendMessageNonSequentially((int)SomeCustomMessageTypes.Test2, new byte[] { 0, 1, 2, 3, 4, 5 });
                                 break;
                             case "send3":
                                 if (currentNode == null)
                                 {
-                                    throw new Exception("Choose node first");
+                                    throw new Exception("Choose node");
                                 }
                                 currentNode.SendAndForget((int)SomeCustomMessageTypes.Test2, new byte[] { 0, 1, 2, 3, 4, 5 });
+                                break;
+                            case "st1":
+                                if (currentNode == null)
+                                {
+                                    throw new Exception("Choose node");
+                                }
+                                Console.WriteLine("You can top testing by pressing 'q'. Type 'ok' to begin.");
+                                if (Console.ReadLine().Trim().ToLower().Equals("ok"))
+                                {
+                                    try
+                                    {
+                                        ConsoleKeyInfo key;
+                                        int counterOfSentMessages = 0;
+                                        int counterOfReceivedMessages = 0;
+                                        do
+                                        {
+                                            while (!Console.KeyAvailable)
+                                            {
+
+                                                counterOfSentMessages++;
+
+                                                currentNode.SendMessageSequentially((int)SomeCustomMessageTypes.Test1, new byte[] { 0, 1, 2, 3, 4, 5 }, (status) =>
+                                                {
+                                                    counterOfReceivedMessages++;
+                                                    if (status != TransmissionComponent.Structures.Other.AckStatus.Success)
+                                                    {
+                                                        throw new Exception("Message not processed successfully");
+                                                    }
+                                                });
+                                            }
+                                        } while (Console.ReadKey(true).Key != ConsoleKey.Q);
+
+                                        Console.WriteLine("Waiting for callbacks...");
+
+                                        do
+                                        {
+                                            Thread.Sleep(1000);
+                                        } while (Console.ReadKey(true).Key != ConsoleKey.Q || counterOfReceivedMessages == counterOfSentMessages);
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        Console.WriteLine($"Cought exception: {e.Message}");
+                                    }
+                                }
                                 break;
                             default:
                                 Console.WriteLine("No such command");
@@ -221,6 +266,7 @@ namespace NetworkBuilderDemo
                $"* send - send example message (ordering + retransmission)\n" +
                $"* send2 - send example message (no ordering, just retramission)\n" +
                $"* send3 - send example message (no ordering, no retranssmission, just UDP packet)\n" +
+               $"* st1 - stress testing - using ordered (sequential) messages\n" +
                $"==========================\n\n");
         }
     }
