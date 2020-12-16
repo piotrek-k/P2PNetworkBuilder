@@ -71,6 +71,11 @@ namespace TransmissionComponent
         /// </summary>
         internal object trackedMessagesLock = new object();
 
+        /// <summary>
+        /// In case external device didn't receive ReceiveAck. Should be cleared periodically.
+        /// </summary>
+        internal Dictionary<int, AckStatus> AlreadyProcessedMessagesResultRegister { get; private set; } = new Dictionary<int, AckStatus>();
+
         public KnownSource(ExtendedUdpClient euc, Guid deviceId, ILogger logger)
         {
             _euc = euc;
@@ -85,52 +90,85 @@ namespace TransmissionComponent
         /// <param name="df"></param>
         internal void HandleNewMessage(IPEndPoint senderIpEndPoint, DataFrame df)
         {
-            if (df.SendSequentially)
+            if (df.ExpectAcknowledge)
             {
-                if (df.RetransmissionId == NextExpectedIncomingMessageId)
+                if (df.SendSequentially)
                 {
-                    ProcessMessageAndSendAck(df, senderIpEndPoint);
+                    // sequential message
 
-                    SetExpectedIncomingMessageCounterToNextValue();
-                }
-                else if ((NextExpectedIncomingMessageId > 0 && df.RetransmissionId > NextExpectedIncomingMessageId) ||
-                    (NextExpectedIncomingMessageId < 0 && df.RetransmissionId < NextExpectedIncomingMessageId))
-                {
-                    _logger.LogDebug($"Received {df.RetransmissionId} but expected {NextExpectedIncomingMessageId}. Message postponed.");
-                    try
+                    if (df.RetransmissionId == NextExpectedIncomingMessageId)
                     {
-                        WaitingIncomingMessages.Add(df.RetransmissionId, new WaitingMessage
+                        // can be processed straight away
+
+                        ProcessMessageAndSendAck(df, senderIpEndPoint);
+
+                        SetExpectedIncomingMessageCounterToNextValue();
+                    }
+                    else if ((NextExpectedIncomingMessageId > 0 && df.RetransmissionId > NextExpectedIncomingMessageId) ||
+                        (NextExpectedIncomingMessageId < 0 && df.RetransmissionId < NextExpectedIncomingMessageId))
+                    {
+                        // received too early. Processing needs to be postponed
+
+                        _logger.LogTrace($"Received {df.RetransmissionId} but expected {NextExpectedIncomingMessageId}. Message postponed.");
+                        try
                         {
-                            DataFrame = df,
-                            Sender = senderIpEndPoint
-                        });
+                            WaitingIncomingMessages.Add(df.RetransmissionId, new WaitingMessage
+                            {
+                                DataFrame = df,
+                                Sender = senderIpEndPoint
+                            });
+                        }
+                        catch (ArgumentException)
+                        {
+                            // seems to be a retransmission
+                            _logger.LogWarning("ArgumentException while adding incoming message to waiting list");
+                        }
                     }
-                    catch (ArgumentException)
+                    else
                     {
-                        // seems to be a retransmission
+                        // already processed. Probaby ReceiveAck wasn't delivered properly
+
+                        _logger.LogTrace($"Message with retransmission id {df.RetransmissionId} already processed. Sending ReceiveAck again. ");
+                        TryToSendReceiveAckAgain(senderIpEndPoint, df.RetransmissionId);
                     }
                 }
                 else
                 {
-                    _logger.LogTrace($"Message omitted. Unexpected retransmission id {df.RetransmissionId}");
-                }
-            }
-            else if (
-                (
-                    (NextExpectedIncomingMessageId > 0 && df.RetransmissionId >= NextExpectedIncomingMessageId) ||
-                    (NextExpectedIncomingMessageId < 0 && df.RetransmissionId <= NextExpectedIncomingMessageId)
-                )
-                && !ProcessedMessages.Contains(df.RetransmissionId))
-            {
-                ProcessMessageAndSendAck(df, senderIpEndPoint);
+                    // non-sequential message
 
-                if (df.RetransmissionId == NextExpectedIncomingMessageId)
-                {
-                    SetExpectedIncomingMessageCounterToNextValue();
-                }
-                else
-                {
-                    ProcessedMessages.Add(df.RetransmissionId);
+                    if (
+                        (
+                            (NextExpectedIncomingMessageId > 0 && df.RetransmissionId >= NextExpectedIncomingMessageId) ||
+                            (NextExpectedIncomingMessageId < 0 && df.RetransmissionId <= NextExpectedIncomingMessageId)
+                        )
+                        && !ProcessedMessages.Contains(df.RetransmissionId))
+                    {
+                        // Non-sequential message with proper id
+
+                        ProcessMessageAndSendAck(df, senderIpEndPoint);
+
+                        if (df.RetransmissionId == NextExpectedIncomingMessageId)
+                        {
+                            SetExpectedIncomingMessageCounterToNextValue();
+                        }
+                        else
+                        {
+                            ProcessedMessages.Add(df.RetransmissionId);
+                        }
+                    }
+                    else
+                    {
+                        // Non-sequential message with outdated id?
+
+                        var result = TryToSendReceiveAckAgain(senderIpEndPoint, df.RetransmissionId);
+
+                        if (!result)
+                        {
+                            // not processed with outdated id
+
+                            _logger.LogError($"Recevied incorrect message id {df.RetransmissionId}");
+                        }
+                    }
                 }
             }
             else if (df.RetransmissionId == 0 && !df.ExpectAcknowledge)
@@ -145,16 +183,44 @@ namespace TransmissionComponent
             }
         }
 
+        private bool TryToSendReceiveAckAgain(IPEndPoint senderIpEndPoint, int retransmissionId)
+        {
+            AckStatus foundResult;
+            if (AlreadyProcessedMessagesResultRegister.TryGetValue(retransmissionId, out foundResult))
+            {
+                SendReceiveAcknowledge(retransmissionId, senderIpEndPoint, foundResult);
+                return true;
+            }
+            else
+            {
+                _logger.LogError($"Couldn't find requested message result ({retransmissionId})");
+                return false;
+            }
+        }
+
         private void ProcessMessageAndSendAck(DataFrame df, IPEndPoint callbackEndpoint)
         {
             AckStatus result = ProcessMessage(df, callbackEndpoint);
+            SendReceiveAcknowledge(df.RetransmissionId, callbackEndpoint, result);
 
+            try
+            {
+                AlreadyProcessedMessagesResultRegister.Add(df.RetransmissionId, result);
+            }
+            catch (ArgumentException)
+            {
+                _logger.LogWarning("System tried to add the same ReceiveAck more than once");
+            }
+        }
+
+        private void SendReceiveAcknowledge(int retransmissionId, IPEndPoint callbackEndpoint, AckStatus result)
+        {
             var ra = new ReceiveAcknowledge()
             {
                 Status = (int)result
             }.PackToBytes();
 
-            _euc.SendReceiveAck(callbackEndpoint, ra, _euc.DeviceId, df.RetransmissionId);
+            _euc.SendReceiveAck(callbackEndpoint, ra, _euc.DeviceId, retransmissionId);
         }
 
         private AckStatus ProcessMessage(DataFrame df, IPEndPoint callbackEndpoint)
@@ -259,6 +325,7 @@ namespace TransmissionComponent
         {
             WaitingIncomingMessages.Clear();
             ProcessedMessages.Clear();
+            AlreadyProcessedMessagesResultRegister.Clear();
 
             NextExpectedIncomingMessageId = expectedNextIncomingValue;
         }

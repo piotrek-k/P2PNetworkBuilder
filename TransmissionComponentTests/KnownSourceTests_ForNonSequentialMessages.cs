@@ -39,7 +39,8 @@ namespace TransmissionComponentTests
             {
                 SourceNodeIdGuid = sourceId,
                 RetransmissionId = testedMessageId,
-                SendSequentially = false
+                SendSequentially = false,
+                ExpectAcknowledge = true
             };
 
             // Act
@@ -65,17 +66,20 @@ namespace TransmissionComponentTests
             knownSource.HandleNewMessage(endpoint, new DataFrame()
             {
                 RetransmissionId = 2,
-                SendSequentially = false
+                SendSequentially = false,
+                ExpectAcknowledge = true
             });
             knownSource.HandleNewMessage(endpoint, new DataFrame()
             {
                 RetransmissionId = 3,
-                SendSequentially = false
+                SendSequentially = false,
+                ExpectAcknowledge = true
             });
             knownSource.HandleNewMessage(endpoint, new DataFrame()
             {
                 RetransmissionId = 4,
-                SendSequentially = false
+                SendSequentially = false,
+                ExpectAcknowledge = true
             });
 
             // Assert
@@ -84,7 +88,8 @@ namespace TransmissionComponentTests
             knownSource.HandleNewMessage(endpoint, new DataFrame()
             {
                 RetransmissionId = 1,
-                SendSequentially = false
+                SendSequentially = false,
+                ExpectAcknowledge = true
             });
 
             // Assert
