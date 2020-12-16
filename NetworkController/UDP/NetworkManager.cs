@@ -300,7 +300,7 @@ namespace NetworkController.UDP
 
                         try
                         {
-                            node.HandleIncomingBytes(ncdf);
+                            return node.HandleIncomingBytes(ncdf);
                         }
                         catch (Exception e)
                         {
