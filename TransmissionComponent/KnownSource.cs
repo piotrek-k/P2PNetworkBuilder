@@ -325,6 +325,7 @@ namespace TransmissionComponent
         {
             WaitingIncomingMessages.Clear();
             ProcessedMessages.Clear();
+            AlreadyProcessedMessagesResultRegister.Clear();
 
             NextExpectedIncomingMessageId = expectedNextIncomingValue;
         }
