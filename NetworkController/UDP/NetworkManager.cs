@@ -47,19 +47,31 @@ namespace NetworkController.UDP
 
         public event EventHandler NetworkChanged;
 
+        /// <summary>
+        /// Needed to store packet size value before creation of transmissionController
+        /// </summary>
+        private int _tempMaxPacketSizeStorage = -1;
+        /// <summary>
+        /// Some devices reject too large UDP packets or divide them into smaller chunks
+        /// To avoid it, set packet size limit
+        /// </summary>
         public int MaxPacketSize
         {
             get
             {
+                if (transmissionController == null)
+                {
+                    return _tempMaxPacketSizeStorage;
+                }
                 return transmissionController.MaxPacketSize;
             }
             internal set
             {
-                if(transmissionController == null)
+                _tempMaxPacketSizeStorage = value;
+                if (transmissionController != null)
                 {
-                    throw new Exception("MaxPacketSize should be set after setting up listener");
+                    transmissionController.MaxPacketSize = value;
                 }
-                transmissionController.MaxPacketSize = value;
             }
         }
 
@@ -241,6 +253,7 @@ namespace NetworkController.UDP
 
             transmissionController = new ExtendedUdpClient(_logger, DeviceId);
             transmissionController.StartListening(port);
+            transmissionController.MaxPacketSize = MaxPacketSize;
 
             transmissionController.NewIncomingMessage = (newMsgEventArgs) =>
             {

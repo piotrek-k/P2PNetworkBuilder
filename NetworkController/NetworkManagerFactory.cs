@@ -56,6 +56,10 @@ namespace NetworkController
             return this;
         }
 
+        /// <summary>
+        /// Some devices reject too large UDP packets or divide them into smaller chunks.
+        /// To avoid it, set packet size limit
+        /// </summary>
         public NetworkManagerFactory SetMaxPacketSize(int size)
         {
             _maxPacketSize = size;
