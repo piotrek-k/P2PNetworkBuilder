@@ -39,7 +39,8 @@ namespace TransmissionComponentTests
             {
                 SourceNodeIdGuid = sourceId,
                 RetransmissionId = testedMessageId,
-                SendSequentially = true
+                SendSequentially = true,
+                ExpectAcknowledge = true
             };
 
             // Act
@@ -66,7 +67,8 @@ namespace TransmissionComponentTests
             {
                 SourceNodeIdGuid = sourceId,
                 RetransmissionId = testedMessageId,
-                SendSequentially = true
+                SendSequentially = true,
+                ExpectAcknowledge = true
             };
 
             // Act
@@ -89,19 +91,22 @@ namespace TransmissionComponentTests
             DataFrame df_that_came_too_fast_1 = new DataFrame()
             {
                 RetransmissionId = 3,
-                SendSequentially = true
+                SendSequentially = true,
+                ExpectAcknowledge = true
             };
 
             DataFrame df_that_came_too_fast_2 = new DataFrame()
             {
                 RetransmissionId = 2,
-                SendSequentially = true
+                SendSequentially = true,
+                ExpectAcknowledge = true
             };
 
             DataFrame df_to_process_first = new DataFrame()
             {
                 RetransmissionId = 1,
-                SendSequentially = true
+                SendSequentially = true,
+                ExpectAcknowledge = true
             };
 
             // Act 
@@ -132,7 +137,8 @@ namespace TransmissionComponentTests
             DataFrame message = new DataFrame()
             {
                 RetransmissionId = 10,
-                SendSequentially = true
+                SendSequentially = true,
+                ExpectAcknowledge = true
             };
 
             // Act
@@ -164,27 +170,32 @@ namespace TransmissionComponentTests
             knownSource.HandleNewMessage(endpoint, new DataFrame()
             {
                 RetransmissionId = 4,
-                SendSequentially = true
+                SendSequentially = true,
+                ExpectAcknowledge = true
             });
             knownSource.HandleNewMessage(endpoint, new DataFrame()
             {
                 RetransmissionId = 2,
-                SendSequentially = false
+                SendSequentially = false,
+                ExpectAcknowledge = true
             });
             knownSource.HandleNewMessage(endpoint, new DataFrame()
             {
                 RetransmissionId = 3,
-                SendSequentially = false
+                SendSequentially = false,
+                ExpectAcknowledge = true
             });
             knownSource.HandleNewMessage(endpoint, new DataFrame()
             {
                 RetransmissionId = 1,
-                SendSequentially = true
+                SendSequentially = true,
+                ExpectAcknowledge = true
             });
             knownSource.HandleNewMessage(endpoint, new DataFrame()
             {
                 RetransmissionId = 5,
-                SendSequentially = true
+                SendSequentially = true,
+                ExpectAcknowledge = true
             });
 
             // Assert

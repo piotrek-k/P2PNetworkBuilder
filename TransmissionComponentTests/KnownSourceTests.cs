@@ -50,12 +50,14 @@ namespace TransmissionComponentTests
             knownSource.HandleNewMessage(endpoint, new DataFrame()
             {
                 RetransmissionId = 1 * idModifier,
-                SendSequentially = sequentialModifier ? true : false
+                SendSequentially = sequentialModifier ? true : false,
+                ExpectAcknowledge = true
             });
             knownSource.HandleNewMessage(endpoint, new DataFrame()
             {
                 RetransmissionId = 2 * idModifier,
-                SendSequentially = sequentialModifier ? false : true
+                SendSequentially = sequentialModifier ? false : true,
+                ExpectAcknowledge = true
             });
 
             // Counter reset
@@ -65,24 +67,28 @@ namespace TransmissionComponentTests
             knownSource.HandleNewMessage(endpoint, new DataFrame()
             {
                 RetransmissionId = 3 * idModifier,
-                SendSequentially = sequentialModifier ? true : false
+                SendSequentially = sequentialModifier ? true : false,
+                ExpectAcknowledge = true
             });
             knownSource.HandleNewMessage(endpoint, new DataFrame()
             {
                 RetransmissionId = 4 * idModifier,
-                SendSequentially = sequentialModifier ? false : true
+                SendSequentially = sequentialModifier ? false : true,
+                ExpectAcknowledge = true
             });
 
             // These should be processed
             knownSource.HandleNewMessage(endpoint, new DataFrame()
             {
                 RetransmissionId = -4 * idModifier,
-                SendSequentially = sequentialModifier ? true : false
+                SendSequentially = sequentialModifier ? true : false,
+                ExpectAcknowledge = true
             });
             knownSource.HandleNewMessage(endpoint, new DataFrame()
             {
                 RetransmissionId = -5 * idModifier,
-                SendSequentially = sequentialModifier ? false : true
+                SendSequentially = sequentialModifier ? false : true,
+                ExpectAcknowledge = true
             });
 
             // Assert
@@ -114,18 +120,21 @@ namespace TransmissionComponentTests
             knownSource.HandleNewMessage(endpoint, new DataFrame()
             {
                 RetransmissionId = valueCausingOverflow,
-                SendSequentially = sequentialModifier ? true : false
+                SendSequentially = sequentialModifier ? true : false,
+                ExpectAcknowledge = true
             });
 
             knownSource.HandleNewMessage(endpoint, new DataFrame()
             {
                 RetransmissionId = 1 * idModifier,
-                SendSequentially = sequentialModifier ? true : false
+                SendSequentially = sequentialModifier ? true : false,
+                ExpectAcknowledge = true
             });
             knownSource.HandleNewMessage(endpoint, new DataFrame()
             {
                 RetransmissionId = 2 * idModifier,
-                SendSequentially = sequentialModifier ? true : false
+                SendSequentially = sequentialModifier ? true : false,
+                ExpectAcknowledge = true
             });
 
             // Assert
@@ -135,7 +144,7 @@ namespace TransmissionComponentTests
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public void HandleNewMessageShould_SendReceiveAckJustAfterReceiving(bool sequentialModifier)
+        public void HandleNewMessageShould_RespondWithReceiveAckAfterProcessingMessage(bool sequentialModifier)
         {
             // Arrange
             Mock<IUdpClient> internetTransmissionMock = new Mock<IUdpClient>();
@@ -152,20 +161,27 @@ namespace TransmissionComponentTests
 
             knownSource.ResetIncomingMessagesCounter(1);
 
+            int numberOfIncomingMessages = 3;
+
             // Act
-            knownSource.HandleNewMessage(endpoint, new DataFrame()
+            for(int i = 0; i< numberOfIncomingMessages; i++)
             {
-                RetransmissionId = 1,
-                SendSequentially = sequentialModifier ? true : false
-            });
-            knownSource.HandleNewMessage(endpoint, new DataFrame()
-            {
-                RetransmissionId = 1,
-                SendSequentially = sequentialModifier ? false : true
-            });
+                knownSource.HandleNewMessage(endpoint, new DataFrame()
+                {
+                    RetransmissionId = 1,
+                    SendSequentially = sequentialModifier ? true : false,
+                    ExpectAcknowledge = true
+                });
+            }
 
             // Assert
-            internetTransmissionMock.Verify(x => x.Send(It.Is<byte[]>(y => DataFrame.Unpack(y).ReceiveAck == true), It.IsAny<int>(), It.IsAny<IPEndPoint>()), Times.Once);
+            internetTransmissionMock
+                .Verify(x => 
+                    x.Send(
+                        It.Is<byte[]>(y => DataFrame.Unpack(y).ReceiveAck == true),
+                        It.IsAny<int>(),
+                        It.IsAny<IPEndPoint>()),
+                    Times.Exactly(numberOfIncomingMessages));
         }
     }
 }
