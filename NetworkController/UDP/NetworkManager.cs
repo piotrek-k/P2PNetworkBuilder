@@ -59,11 +59,11 @@ namespace NetworkController.UDP
         {
             get
             {
-                if (transmissionController == null)
+                if(_tempMaxPacketSizeStorage == -1 && transmissionController != null)
                 {
-                    return _tempMaxPacketSizeStorage;
+                    _tempMaxPacketSizeStorage = transmissionController.MaxPacketSize;
                 }
-                return transmissionController.MaxPacketSize;
+                return _tempMaxPacketSizeStorage;
             }
             internal set
             {
